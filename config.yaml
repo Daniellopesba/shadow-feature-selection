@@ -1,0 +1,10 @@
+default_profile: smoke
+
+orchestration:
+  max_passes: 3
+  max_attempts_per_pass: 2
+  results_dir: results
+  executed_dir: executed
+  failed_path: failed.json
+  notebook: experiment.ipynb
+  kernel: shadow-feature-selection

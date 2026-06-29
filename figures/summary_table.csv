@@ -1,0 +1,4 @@
+n_min_bin,n_scenarios,n_min_min,n_min_max,mean_noise_floor,mean_fnr_max,mean_fnr_p90,recommendation
+25-74,2,50,50,0.11094169310332945,0.35,0.3,shadow approach unreliable; prefer stratified CV w/ direct gain ranking
+75-199,2,100,100,0.09260330904862277,0.05,0.0,use P90 floor (multi-shadow)
+200-499,1,200,200,0.09127482623543653,0.0,0.0,shadow heuristic OK

@@ -1,4 +1,7 @@
 n_min_bin,n_scenarios,n_min_min,n_min_max,mean_noise_floor,mean_fnr_max,mean_fnr_p90,recommendation
-25-74,2,50,50,0.11094169310332945,0.35,0.3,shadow approach unreliable; prefer stratified CV w/ direct gain ranking
-75-199,2,100,100,0.09260330904862277,0.05,0.0,use P90 floor (multi-shadow)
-200-499,1,200,200,0.09127482623543653,0.0,0.0,shadow heuristic OK
+<25,1,10,10,0.1353951628380955,0.8160000000000001,0.7360000000000001,shadow approach unreliable; prefer stratified CV w/ direct gain ranking
+25-74,7,25,50,0.10575953548957794,0.37809523809523815,0.30666666666666664,shadow approach unreliable; prefer stratified CV w/ direct gain ranking
+75-199,6,100,125,0.09460923503198355,0.10466666666666667,0.05333333333333334,use P90 floor (multi-shadow)
+200-499,6,200,250,0.09437306383932653,0.10666666666666669,0.08222222222222224,use P90 floor (multi-shadow)
+500-1499,5,500,1000,0.08867802800649328,0.0,0.0,shadow heuristic OK
+1500+,1,2000,2000,0.08635128406604711,0.0,0.0,shadow heuristic OK

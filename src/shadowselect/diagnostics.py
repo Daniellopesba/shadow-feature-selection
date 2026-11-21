@@ -40,19 +40,24 @@ class ImbalanceReport:
 
 
 def _recommendation(n_min: int) -> str:
-    if n_min < 50:
+    # Bands follow the paper's Section 6 (Tables 1-2).
+    if n_min < 25:
         return (
-            "Unreliable: do not prune on training-set gain vs. shadows. Use permutation "
-            "importance on held-out data with many rounds, keep tentative features, or "
-            "collect more minority samples."
+            "Unreliable: no importance-threshold method recovered moderate effects at this "
+            "count. Keep features on domain grounds, inspect a regularisation path, or collect "
+            "more positives."
         )
-    if n_min < 200:
+    if n_min < 100:
         return (
-            "Marginal: use ShadowFeatureSelector(importance='permutation') with n_iter >= 20 "
-            "and treat 'tentative' features as kept."
+            "Marginal: use repeated rounds (n_iter >= 20) with keep_tentative=True and expect "
+            "about 15% of irrelevant features to be kept; with XGBoost 2.x set "
+            "base_score=y.mean(). Only features with n_min * delta^2 >~ 25 are reliably found."
         )
-    if n_min < 1000:
-        return "Usually fine for moderate effects; prefer held-out permutation importance."
+    if n_min < 500:
+        return (
+            "Usually fine for moderate effects (n_min * delta^2 >~ 25); use repeated rounds "
+            "and, with XGBoost 2.x, base_score=y.mean()."
+        )
     return "Shadow-feature selection is expected to work for all but very weak features."
 
 

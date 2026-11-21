@@ -221,8 +221,9 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
         if effective_min < self.min_minority:
             warnings.warn(
                 f"Minority class has {effective_min} training samples (< {self.min_minority}). "
-                "Shadow-feature selection loses power quickly at small minority counts; "
-                "weak features are likely to be rejected. See shadowselect.diagnostics.",
+                "Shadow-feature selection loses power quickly at small minority counts and "
+                "weak features are likely to be rejected; consider keep_tentative=True. "
+                "See shadowselect.assess_imbalance.",
                 ImbalanceWarning,
                 stacklevel=2,
             )

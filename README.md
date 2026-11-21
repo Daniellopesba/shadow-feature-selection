@@ -49,7 +49,7 @@ from shadowselect import ShadowFeatureSelector, assess_imbalance
 
 # 1. Before selecting: what can this target support?
 print(assess_imbalance(y))
-# n=40000, n_minority=40 (p=0.0010); first-split minimum detectable shift ~ 0.75 SD. Unreliable: ...
+# n=20000, n_minority=40 (p=0.0020); first-split minimum detectable shift ~ 0.65 SD. Marginal: ...
 
 # 2. Select. Boruta-style rounds with fresh shuffled shadows and a binomial test.
 selector = ShadowFeatureSelector(

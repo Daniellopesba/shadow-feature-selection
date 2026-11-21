@@ -91,6 +91,8 @@ def selection_metrics(
     importances (``q = 1`` is the classical max-shadow rule) and the false
     negative rate is the fraction of real features strictly below it.
 
+    If every importance is zero (the model never split) all values are NaN.
+
     Returns keys ``floor_q{100q}``, ``fnr_q{100q}`` for each quantile, plus
     ``mean_real_importance`` and ``mean_noise_importance``.
     """
@@ -100,7 +102,14 @@ def selection_metrics(
     if n_real == 0 or n_noise == 0:
         raise ValueError("need at least one real and one noise feature")
     total = imp.sum()
-    imp = imp / total if total > 0 else imp
+    if total <= 0:  # the model made no split at all: the rule is undefined
+        out = {"mean_real_importance": float("nan"), "mean_noise_importance": float("nan")}
+        for q in quantiles:
+            tag = f"q{int(round(100 * q))}"
+            out[f"floor_{tag}"] = float("nan")
+            out[f"fnr_{tag}"] = float("nan")
+        return out
+    imp = imp / total
     real, noise = imp[:n_real], imp[n_real:]
     out: dict[str, float] = {
         "mean_real_importance": float(real.mean()),

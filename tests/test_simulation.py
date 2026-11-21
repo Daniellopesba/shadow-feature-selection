@@ -44,3 +44,8 @@ def test_selection_metrics():
 def test_selection_metrics_shape_check():
     with pytest.raises(ValueError):
         selection_metrics(np.ones(5), 3, 3)
+
+
+def test_selection_metrics_no_split_is_nan():
+    m = selection_metrics(np.zeros(6), 3, 3)
+    assert np.isnan(m["fnr_q100"]) and np.isnan(m["floor_q90"])

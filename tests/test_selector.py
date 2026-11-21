@@ -141,7 +141,7 @@ def test_assess_imbalance():
     r = assess_imbalance(y, n_rep=100)
     assert r.n_minority == 20
     assert "Unreliable" in r.recommendation
-    big = assess_imbalance(np.r_[np.ones(2000), np.zeros(8000)], n_rep=100)
+    big = assess_imbalance(np.r_[np.ones(400), np.zeros(8000)], n_rep=100)
     assert big.min_detectable_delta < r.min_detectable_delta
 
 

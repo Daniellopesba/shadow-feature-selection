@@ -27,8 +27,8 @@ class ImbalanceReport:
     n_minority: int
     minority_fraction: float
     min_detectable_delta: float
-    """Smallest standardized mean shift whose best first split beats the
-    95th percentile of the null max (first-round theory, Section 3)."""
+    """Smallest standardised mean shift that wins the first split against the
+    shadows with probability 0.9 (first-round theory; a lower bound)."""
     recommendation: str
 
     def __str__(self) -> str:
@@ -56,25 +56,22 @@ def _recommendation(n_min: int) -> str:
     return "Shadow-feature selection is expected to work for all but very weak features."
 
 
-def assess_imbalance(y, null_quantile: float = 0.95, n_rep: int = 500, seed: int = 0):
+def assess_imbalance(y, n_shadows: int = 10, power: float = 0.9, n_rep: int = 500, seed: int = 0):
     """Summarise how much a small minority count limits shadow-feature selection.
 
-    The minimum detectable shift uses :func:`shadowselect.theory.max_null_gain`
-    (Monte Carlo of the null maximum of the first-split chi-square) and the
-    small-effect non-centrality ``(2/pi) n_min (1-p) delta^2``. It is a
-    first-round, single-split heuristic: full boosting ensembles need larger
-    effects (see the paper, Section 4).
+    ``min_detectable_delta`` is the smallest standardised mean shift for which
+    an informative feature wins the *first* split of a gradient-boosted tree
+    against ``n_shadows`` null features with probability ``power``. It uses
+    the small-prevalence limit of the paper (Theorem 1) with XGBoost's default
+    regularisation (lambda = 1, min_child_weight = 1) and an intercept at the
+    prevalence, via :func:`shadowselect.theory.detectable_delta`. Full
+    300-round ensembles need larger effects than this (paper, Section 4), so
+    read it as a lower bound on what is detectable.
     """
-    from .theory import max_null_gain, min_detectable_delta
+    from .theory import detectable_delta
 
     y = np.asarray(y)
     n = len(y)
     n_min = minority_count(y)
-    p = n_min / n
-    # the null maximum depends on n mostly through n_min; cap n for speed
-    n_sim = min(n, 20000)
-    k_sim = max(1, int(round(n_sim * p)))
-    null = max_null_gain(n_sim, k_sim, n_rep=n_rep, min_child_weight=1.0, seed=seed)
-    q = float(np.quantile(null, null_quantile))
-    mdd = min_detectable_delta(n_min, q, p)
-    return ImbalanceReport(n, n_min, p, mdd, _recommendation(n_min))
+    mdd = detectable_delta(n_min, n_null=n_shadows, power=power, n_rep=n_rep, seed=seed)
+    return ImbalanceReport(n, n_min, n_min / n, mdd, _recommendation(n_min))

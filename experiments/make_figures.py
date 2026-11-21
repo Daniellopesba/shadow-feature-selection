@@ -85,8 +85,14 @@ def fig_e1():
         ylabel="median of max$_t$ Gain (null feature)",
         title="(a) best split of a pure-noise feature, round 1",
     )
-    ax.text(0.02, 0.02, "auto intercept: best split < 0 (no split) at small $n_{min}$",
-            transform=ax.transAxes, fontsize=6.5, color="grey")
+    ax.text(
+        0.02,
+        0.02,
+        "auto intercept: best split < 0 (no split) at small $n_{min}$",
+        transform=ax.transAxes,
+        fontsize=6.5,
+        color="grey",
+    )
     ax.legend(fontsize=6, loc="lower right")
 
     r = pd.read_csv(RESULTS / "e1_root_split.csv.gz")

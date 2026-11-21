@@ -13,6 +13,7 @@ import argparse
 import itertools
 import warnings
 
+import numpy as np
 from common import dataset, run_grid
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 
@@ -26,12 +27,12 @@ def model(name, seed):
         )
     if name == "random_forest":
         return RandomForestClassifier(n_estimators=300, n_jobs=1, random_state=seed)
-    if name == "lightgbm":
+    if name in ("lightgbm", "lightgbm_default"):
         from lightgbm import LGBMClassifier
 
         return LGBMClassifier(
             n_estimators=300,
-            num_leaves=63,
+            num_leaves=63 if name == "lightgbm" else 31,  # 31 is LightGBM's default
             learning_rate=0.1,
             importance_type="gain",
             n_jobs=1,
@@ -46,14 +47,30 @@ def worker(s, r, seed):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         m = model(s["backend"], seed).fit(X, y)
-    return [selection_metrics(m.feature_importances_, s["n_real"], s["n_noise"])]
+    rows = [
+        dict(
+            importance="native",
+            **selection_metrics(m.feature_importances_, s["n_real"], s["n_noise"]),
+        )
+    ]
+    if s["backend"].startswith("lightgbm"):
+        # mean gain per split, comparable to XGBoost's default "gain"
+        booster = m.booster_
+        tot = booster.feature_importance("gain")
+        cnt = booster.feature_importance("split")
+        mean = np.divide(tot, cnt, out=np.zeros_like(tot, dtype=float), where=cnt > 0)
+        rows.append(
+            dict(importance="mean_gain", **selection_metrics(mean, s["n_real"], s["n_noise"]))
+        )
+    return rows
+
+
+BACKENDS = ("sklearn_gbm", "random_forest", "lightgbm", "lightgbm_default")
 
 
 def scenarios(quick):
     out = []
-    for backend, n_min, p in itertools.product(
-        ("sklearn_gbm", "random_forest", "lightgbm"), (10, 25, 50, 100, 250, 500), (0.1, 0.01)
-    ):
+    for backend, n_min, p in itertools.product(BACKENDS, (10, 25, 50, 100, 250, 500), (0.1, 0.01)):
         n = int(round(n_min / p))
         out.append(
             dict(

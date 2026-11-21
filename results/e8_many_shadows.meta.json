@@ -1,0 +1,15 @@
+{
+  "experiment": "e8_many_shadows",
+  "n_scenarios": 12,
+  "n_tasks": 180,
+  "wall_seconds": 86.3,
+  "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "pandas": "3.0.5",
+    "sklearn": "1.9.1",
+    "cpu_count": "4",
+    "xgboost": "2.1.3"
+  }
+}

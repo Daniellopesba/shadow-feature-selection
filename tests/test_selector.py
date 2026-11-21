@@ -21,14 +21,18 @@ def rf():
 
 def test_native_importance_recovers_support(easy):
     X, y = easy
-    sel = ShadowFeatureSelector(rf(), importance="native", n_iter=10, random_state=0).fit(X, y)
+    sel = ShadowFeatureSelector(
+        rf(), importance="native", n_iter=10, keep_tentative=False, random_state=0
+    ).fit(X, y)
     assert sel.get_support().tolist() == [True] * 3 + [False] * 3
     assert sel.transform(X).shape == (len(y), 3)
 
 
 def test_permutation_importance_recovers_support(easy):
     X, y = easy
-    sel = ShadowFeatureSelector(rf(), n_iter=8, random_state=0).fit(X, y)
+    sel = ShadowFeatureSelector(
+        rf(), importance="permutation", n_iter=8, keep_tentative=False, random_state=0
+    ).fit(X, y)
     assert sel.get_support()[:3].all()
     assert not sel.get_support()[3:].any()
 
@@ -37,6 +41,17 @@ def test_default_estimator_runs(easy):
     X, y = easy
     sel = ShadowFeatureSelector(n_iter=3, random_state=0, alpha=0.5).fit(X, y)
     assert sel.importance_history_.shape == (3, 6)
+    assert sel.importance_mode_ == "native"  # default random forest has feature_importances_
+
+
+def test_auto_importance_falls_back_to_permutation(easy):
+    X, y = easy
+    sel = ShadowFeatureSelector(LogisticRegression(), n_iter=2, random_state=0).fit(X, y)
+    assert sel.importance_mode_ == "permutation"
+
+
+def test_keep_tentative_is_default():
+    assert ShadowFeatureSelector().keep_tentative is True
 
 
 def test_reproducible(easy):
@@ -57,7 +72,9 @@ def test_shadow_options(easy, shadow, n_shadows):
 
 def test_decisions_and_keep_tentative(easy):
     X, y = easy
-    sel = ShadowFeatureSelector(rf(), importance="native", n_iter=2, random_state=0).fit(X, y)
+    sel = ShadowFeatureSelector(
+        rf(), importance="native", n_iter=2, keep_tentative=False, random_state=0
+    ).fit(X, y)
     # two rounds can never reach significance: everything tentative
     assert set(sel.decision_) == {"tentative"}
     assert not sel.get_support().any()
@@ -132,7 +149,9 @@ def test_xgboost_native():
     xgb = pytest.importorskip("xgboost")
     X, y = make_dataset(n=1500, p=0.2, delta=1.0, n_real=2, n_noise=2, seed=0)
     est = xgb.XGBClassifier(n_estimators=50, max_depth=3, verbosity=0)
-    sel = ShadowFeatureSelector(est, importance="native", n_iter=10, random_state=0).fit(X, y)
+    sel = ShadowFeatureSelector(
+        est, importance="native", n_iter=10, keep_tentative=False, random_state=0
+    ).fit(X, y)
     assert sel.get_support().tolist() == [True, True, False, False]
 
 

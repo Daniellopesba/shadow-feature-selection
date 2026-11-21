@@ -9,7 +9,7 @@ from numbers import Integral, Real
 import numpy as np
 from scipy import stats
 from sklearn.base import BaseEstimator, clone
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectorMixin
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import train_test_split
@@ -23,9 +23,9 @@ ACCEPTED, TENTATIVE, REJECTED = "accepted", "tentative", "rejected"
 
 
 def _default_estimator(random_state):
-    return HistGradientBoostingClassifier(
-        max_iter=200, early_stopping=True, random_state=random_state
-    )
+    # Boruta's learner. The paper's experiments used XGBoost; the random forest
+    # behaved alike in the single-shot comparison (paper, Section 4.5).
+    return RandomForestClassifier(n_estimators=200, n_jobs=-1, random_state=random_state)
 
 
 class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
@@ -41,17 +41,19 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
     Parameters
     ----------
     estimator : classifier, default=None
-        Any scikit-learn compatible classifier. With
-        ``importance="native"`` it must expose ``feature_importances_`` after
-        fitting. ``None`` uses ``HistGradientBoostingClassifier`` with early
-        stopping, which forces ``importance="permutation"``.
-    importance : {"native", "permutation"} or callable, default="permutation"
+        Any scikit-learn compatible classifier. ``None`` uses a 200-tree
+        ``RandomForestClassifier`` (Boruta's learner). With XGBoost 2.x, pass
+        ``base_score=y.mean()`` (paper, Section 3.5).
+    importance : {"auto", "native", "permutation"} or callable, default="auto"
         ``"native"`` reads ``estimator.feature_importances_`` (training-set
-        gain/impurity importance). ``"permutation"`` fits on a stratified
-        ``1 - test_size`` split and computes permutation importance on the
-        held-out part. A callable ``f(fitted_estimator, X_val, y_val) ->
-        ndarray`` is also accepted. The paper shows training-set gain is the
-        importance most damaged by a small minority class.
+        gain/impurity importance) after fitting on all data.
+        ``"permutation"`` fits on a stratified ``1 - test_size`` split and
+        computes permutation importance on the held-out part; it is
+        model-agnostic and avoids impurity bias toward high-cardinality
+        features, but spends ``test_size`` of the scarce positives on
+        validation. ``"auto"`` uses native importance when the estimator
+        provides it and permutation otherwise. A callable
+        ``f(fitted_estimator, X_val, y_val) -> ndarray`` is also accepted.
     shadow : {"permute", "gaussian"}, default="permute"
         ``"permute"`` shuffles each real column independently (Boruta;
         preserves marginal distributions and cardinality). ``"gaussian"``
@@ -75,8 +77,13 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
         Scorer for permutation importance.
     n_repeats : int, default=5
         Permutation repeats per round.
-    keep_tentative : bool, default=False
-        Whether tentative features are kept by :meth:`transform`.
+    keep_tentative : bool, default=True
+        Whether tentative features (neither significantly better nor worse
+        than the shadows) are kept by :meth:`transform`. ``True`` is the
+        paper's recommendation when positives are few: keeping only accepted
+        features dropped most moderately predictive features below about
+        100 positives (paper, Table 2). Set ``False`` for Boruta's strict
+        behaviour.
     min_minority : int, default=50
         Emit :class:`ImbalanceWarning` if the minority class has fewer
         samples than this (in the full data for ``"native"``; in the
@@ -91,6 +98,8 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
     decision_ : ndarray of str, shape (n_features,)
         ``"accepted"``, ``"tentative"`` or ``"rejected"``.
     hits_ : ndarray of int, shape (n_features,)
+    importance_mode_ : str
+        ``"native"``, ``"permutation"`` or ``"callable"`` (resolves ``"auto"``).
     importance_history_ : ndarray, shape (n_iter, n_features)
     shadow_threshold_history_ : ndarray, shape (n_iter,)
     pvalues_accept_, pvalues_reject_ : ndarray, shape (n_features,)
@@ -114,7 +123,7 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
         self,
         estimator=None,
         *,
-        importance: str | Callable = "permutation",
+        importance: str | Callable = "auto",
         shadow: str = "permute",
         n_shadows: int | None = None,
         threshold_quantile: float = 1.0,
@@ -124,7 +133,7 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
         test_size: float = 0.3,
         scoring="neg_log_loss",
         n_repeats: int = 5,
-        keep_tentative: bool = False,
+        keep_tentative: bool = True,
         min_minority: int = 50,
         random_state=None,
         n_jobs: int | None = None,
@@ -149,8 +158,8 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
     def _validate_params_(self):
         if self.shadow not in ("permute", "gaussian"):
             raise ValueError(f"shadow must be 'permute' or 'gaussian', got {self.shadow!r}")
-        if not (callable(self.importance) or self.importance in ("native", "permutation")):
-            raise ValueError("importance must be 'native', 'permutation' or a callable")
+        if not (callable(self.importance) or self.importance in ("auto", "native", "permutation")):
+            raise ValueError("importance must be 'auto', 'native', 'permutation' or a callable")
         if not isinstance(self.n_iter, Integral) or self.n_iter < 1:
             raise ValueError("n_iter must be a positive integer")
         if not isinstance(self.threshold_quantile, Real) or not 0 < self.threshold_quantile <= 1:
@@ -161,8 +170,6 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
             not isinstance(self.n_shadows, Integral) or self.n_shadows < 1
         ):
             raise ValueError("n_shadows must be a positive integer or None")
-        if self.estimator is None and self.importance == "native":
-            raise ValueError("the default estimator has no native importance; pass an estimator")
 
     def _make_shadows(self, X, rng):
         n, d = X.shape
@@ -173,7 +180,7 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
         return np.column_stack(cols)
 
     def _importances(self, est, X, y, rng):
-        if self.importance == "native":
+        if self._mode == "native":
             est.fit(X, y)
             if not hasattr(est, "feature_importances_"):
                 raise TypeError(
@@ -215,8 +222,21 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
         self.classes_ = classes
         self.n_minority_ = minority_count(y)
 
+        base = self.estimator if self.estimator is not None else _default_estimator(None)
+        if self.importance == "auto":
+            probe = clone(base)
+            native = hasattr(probe, "feature_importances_") or hasattr(
+                type(probe), "feature_importances_"
+            )
+            self._mode = "native" if native else "permutation"
+        else:
+            self._mode = "native" if self.importance == "native" else "permutation"
+        self.importance_mode_ = self._mode if not callable(self.importance) else "callable"
+        if callable(self.importance):
+            self._mode = "permutation"
+
         effective_min = self.n_minority_
-        if self.importance != "native":
+        if self._mode != "native":
             effective_min = int(np.floor(self.n_minority_ * (1 - self.test_size)))
         if effective_min < self.min_minority:
             warnings.warn(
@@ -239,7 +259,6 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
             )
 
         rng = np.random.default_rng(check_random_state(self.random_state).randint(2**31 - 1))
-        base = self.estimator if self.estimator is not None else _default_estimator(None)
         d = X.shape[1]
         hits = np.zeros(d, dtype=int)
         imp_hist, thr_hist = [], []

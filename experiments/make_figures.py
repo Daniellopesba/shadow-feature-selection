@@ -41,6 +41,12 @@ def save(fig, name):
 
 
 def table(title, df, floatfmt=".2f"):
+    df = df.copy()
+    for col in df.columns:
+        if col in ("p",):
+            df[col] = df[col].map(lambda v: f"{v:g}")
+        elif col in ("n", "n_min") and df[col].dtype.kind in "if":
+            df[col] = df[col].map(lambda v: f"{int(v):,}")
     TABLES.append(f"### {title}\n\n{df.to_markdown(index=False, floatfmt=floatfmt)}\n")
 
 
@@ -51,7 +57,7 @@ def se(x):
 # --------------------------------------------------------------------- E1
 def fig_e1():
     t = pd.read_csv(RESULTS / "e1_null_max.csv")
-    fig, axes = plt.subplots(1, 2, figsize=(8.6, 3.2))
+    fig, axes = plt.subplots(1, 3, figsize=(12.5, 3.4))
     ax = axes[0]
     styles = {
         ("prior", 1.0): ("XGBoost defaults (λ=1, w=1), prior intercept", "-"),
@@ -76,13 +82,16 @@ def fig_e1():
         xscale="log",
         yscale="log",
         xlabel="minority count $n_{min}$",
-        ylabel="median of max$_t$ 2·Gain (null feature)",
+        ylabel="median of max$_t$ Gain (null feature)",
         title="(a) best split of a pure-noise feature, round 1",
     )
-    ax.legend(fontsize=6.5)
+    ax.text(0.02, 0.02, "auto intercept: best split < 0 (no split) at small $n_{min}$",
+            transform=ax.transAxes, fontsize=6.5, color="grey")
+    ax.legend(fontsize=6, loc="lower right")
 
     r = pd.read_csv(RESULTS / "e1_root_split.csv.gz")
-    g = r.groupby(["intercept", "p", "n_min", "delta"]).root_is_real.mean().reset_index()
+    ex = r[r.tree_method == "exact"]
+    g = ex.groupby(["intercept", "p", "n_min", "delta"]).root_is_real.mean().reset_index()
     g["s"] = g.n_min * g.delta**2
     ax = axes[1]
     for icpt, mk in (("prior", "o"), ("auto", "x")):
@@ -97,14 +106,48 @@ def fig_e1():
                 alpha=0.85,
                 label=f"p={p}, {icpt}",
             )
+    # Theorem 1 prediction (limit process), n_min = 50 and 500 across delta
+    from shadowselect.theory import detection_probability
+
+    for n_min, ls in ((50, "-"), (500, "--")):
+        deltas = np.linspace(0.05, 1.0, 14)
+        pred = [detection_probability(n_min, dl, n_null=9, n_rep=400, seed=2) for dl in deltas]
+        ax.plot(
+            n_min * deltas**2,
+            pred,
+            ls,
+            color="black",
+            lw=1,
+            label=f"Theorem 1 limit, $n_{{min}}$={n_min}",
+        )
     ax.set(
         xscale="log",
         xlabel=r"$s = n_{min}\,\delta^2$",
         ylabel="P(root split uses the informative feature)",
-        title="(b) 1 informative vs 9 noise features, depth-1 tree",
+        title="(b) 1 informative vs 9 noise features, exact search",
     )
     ax.axhline(0.1, color="grey", lw=0.8, ls=":")
-    ax.legend(fontsize=6.5, ncol=2)
+    ax.legend(fontsize=5.5, ncol=2, loc="upper left")
+    ax = axes[2]
+    h = r[(r.tree_method == "hist")]
+    ns = (
+        h.groupby(["intercept", "p", "n_min"])
+        .outcome.apply(lambda v: (v == "no_split").mean())
+        .reset_index()
+    )
+    for icpt, mk, ls in (("auto", "x", "-"), ("prior", "o", ":")):
+        for p in sorted(ns.p.unique()):
+            s = ns[(ns.intercept == icpt) & (ns.p == p)].sort_values("n_min")
+            ax.plot(
+                s.n_min, s.outcome, ls, marker=mk, ms=3, color=P_COLOR[p], label=f"p={p}, {icpt}"
+            )
+    ax.set(
+        xscale="log",
+        xlabel="$n_{min}$",
+        ylabel="P(first tree does not split)",
+        title="(c) the intercept toll (Prop. 5)",
+    )
+    ax.legend(fontsize=5.5)
     save(fig, "fig1_first_split")
 
     piv = t[(t.lam == 1.0)].pivot_table(index="n_min", columns=["intercept", "n"], values="q50")
@@ -267,7 +310,8 @@ def fig_e3():
     if not p.exists():
         return
     d = pd.read_csv(p)
-    d = d[d.importance == "gain"]
+    d = d[d.importance == "gain"].copy()
+    d.loc[(d.raw_real_mean == 0) & (d.raw_noise_max == 0), "fnr_q100"] = np.nan  # no split
     agg = d.groupby(["n_min", "p", "delta", "intercept", "rounds"]).fnr_q100.mean().reset_index()
     fig, axes = plt.subplots(2, 3, figsize=(9, 5.2), sharex=True, sharey=True)
     for i, delta in enumerate((0.3, 0.5)):

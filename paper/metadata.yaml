@@ -3,7 +3,30 @@ title: "Shadow-Feature Selection Under Class Imbalance: The Minority Count Decid
 author: "Dan Avraham"
 date: "November 2026"
 abstract: |
-  ABSTRACT_PLACEHOLDER
+  The shadow-feature heuristic, popularised by Boruta, judges each feature
+  against artificial features that are irrelevant by construction and drops
+  any feature that does not beat them. We show that when the positive class
+  is rare, the heuristic drops genuinely predictive features at high rates.
+  The quantity that controls this is the number of minority samples
+  $n_{\min}$, combined with the effect size as $s = n_{\min}\delta^2$, and not
+  the imbalance ratio. For gradient-boosted trees we prove that the
+  first-round split gain is exactly Pearson's chi-square statistic for the
+  split-by-class table. In the small-prevalence limit, the root split
+  depends on the data only through $n_{\min}$ and $\delta$. This limit predicts
+  how often XGBoost picks an informative feature to within 0.03 on
+  average. We also show that XGBoost 2.x's default intercept, about 0.12
+  whenever the prevalence is small, imposes a toll that often blocks the
+  first splits and accounts for most of the extra failure at very small
+  prevalence. Across 600 simulated scenarios and 50,000 fitted models, $s$
+  explains 94% of the variance in the failure rate of 300-tree ensembles,
+  and the imbalance ratio explains none. We compare eight mitigations on
+  both false negative and false positive rates. Class weights, downsampling
+  and early stopping do not help. Repeated rounds that keep tentative
+  features give the best balance. Below about 25 positives no method we
+  tested recovers moderate effects. Each theoretical claim was written as a
+  prediction and tested, and we report the full ledger. We release
+  `shadowselect`, a tested scikit-learn compatible package with an
+  imbalance diagnostic, together with scripts that reproduce every number.
 keywords: [feature selection, class imbalance, gradient boosting, Boruta, shadow features, feature importance, chi-square]
 link-citations: true
 ---

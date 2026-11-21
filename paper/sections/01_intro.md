@@ -51,8 +51,8 @@ make it worse:
    effect size (Theorem 1). The informative feature's advantage scales as
    $n_{\min}\delta^2$ (Proposition 4). We also show how a misestimated intercept
    weakens `min_child_weight` (Proposition 3).
-2. **Controlled experiments (Section 4).** About 290 simulation scenarios, over
-   45,000 fitted models, two imbalance regimes chosen to overlap in
+2. **Controlled experiments (Section 4).** About 600 simulation scenarios and
+   50,000 fitted models, two imbalance regimes chosen to overlap in
    $n_{\min}$, and four learners. We confirm the first-round theory, measure how
    later rounds amplify the failure, and isolate the intercept effect.
 3. **Mitigations with both error rates (Section 5).** We compare eight
@@ -66,7 +66,11 @@ make it worse:
 
 ## 1.4 Related work
 
-**Shadow and knockoff methods.** Boruta [@kursa2010boruta] introduced
+**Shadow, probe and knockoff methods.** The idea of judging features against
+artificial ones that are irrelevant by construction is older than Boruta:
+random probe features [@stoppiglia2003ranking], pseudovariables that
+calibrate a selection threshold [@wu2007controlling], and artificial
+contrasts for tree ensembles [@tuv2009feature]. Boruta [@kursa2010boruta] introduced
 permuted shadow copies with a random-forest learner and a repeated binomial
 test. BorutaSHAP [@keany2020borutashap] swaps in SHAP importances. Model-X
 knockoffs [@candes2018panning] are the principled relative of shadows. They
@@ -79,14 +83,18 @@ work that analyses shadow-based selection as a function of the minority count.
 **Bias and noise in tree importances.** Impurity-based importances are biased
 toward features with many split points [@strobl2007bias]. Permutation
 importance computed on held-out data avoids that bias [@breiman2001random;
-@strobl2007bias]. Uninformative features receive non-zero training-set gain,
+@strobl2007bias], and can be turned into p-values against a permutation null
+[@altmann2010permutation]. Split-selection bias is also why conditional
+inference trees and related methods select splits by p-values instead of raw
+gain [@loh1997split; @hothorn2006unbiased; @strobl2007unbiased;
+@nembrini2018revival]. Uninformative features receive non-zero training-set gain,
 and cross-validated gain has been proposed to correct this
 [@adler2022feature; @zhang2023unbiased]. None of these works studies how the minority count
 changes the comparison.
 
 **Maximally selected statistics.** The best split of a null feature is a
 maximally selected chi-square statistic, studied for cut-point selection in
-biostatistics [@miller1982maximally; @lausen1992maximally]. Our Theorem 1
+biostatistics [@miller1982maximally; @lausen1992maximally; @hothorn2003exact]. Our Theorem 1
 connects that literature to gradient-boosting importance under imbalance.
 
 **Imbalanced learning.** Resampling (e.g. SMOTE, @chawla2002smote), cost-sensitive

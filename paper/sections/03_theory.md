@@ -10,7 +10,7 @@ closed form.
 greedy* threshold search (every midpoint between distinct values is a
 candidate). `tree_method="hist"`, the default for large data, restricts
 thresholds to at most `max_bin` $-1$ quantile cuts (default 255). We note
-where this matters. LightGBM uses the same criterion. Its defaults
+where this matters. LightGBM [@ke2017lightgbm] uses the same criterion. Its defaults
 (prevalence intercept, $\lambda = 0$, `min_sum_hessian_in_leaf` $=10^{-3}$,
 `min_data_in_leaf` $=20$) constrain children by sample count rather than by
 Hessian, so Proposition 3 does not carry over to it.
@@ -46,7 +46,7 @@ $\hat p_S = k_S/n_S$. Splitting a node $S$ into $L$ and $R$ has gain
 
 $$
 \operatorname{Gain} = \frac{G_L^2}{H_L+\lambda} + \frac{G_R^2}{H_R+\lambda}
- - \frac{G_S^2}{H_S+\lambda}, \tag{1}
+ - \frac{G_S^2}{H_S+\lambda}, \qquad (1)
 $$
 
 and the split is made only if $\operatorname{Gain} > \gamma$ and
@@ -64,7 +64,7 @@ $\lambda = 0$, the gain of splitting any node $S$ is
 
 $$
 \operatorname{Gain} = \frac{\hat p_S(1-\hat p_S)}{b(1-b)}\; X_S^2, \qquad
-X_S^2 = \frac{n_S\,(k_L n_R - k_R n_L)^2}{n_L\, n_R\, k_S\,(n_S-k_S)}, \tag{2}
+X_S^2 = \frac{n_S\,(k_L n_R - k_R n_L)^2}{n_L\, n_R\, k_S\,(n_S-k_S)}, \qquad (2)
 $$
 
 where $X_S^2$ is Pearson's chi-square statistic, without continuity correction,
@@ -130,7 +130,7 @@ so
 $$
 \operatorname{Gain}(u) = \bigl(k_L(u) - n_{\min}u\bigr)^2
 \left[\frac{1}{n_{\min}u(1-\hat p) + \lambda} + \frac{1}{n_{\min}(1-u)(1-\hat p) + \lambda}\right],
-\qquad u \in [u_w,\, 1-u_w], \tag{3}
+\qquad u \in [u_w,\, 1-u_w], \qquad (3)
 $$
 
 with $u_w = w/\bigl(n_{\min}(1-\hat p)\bigr)$. Apart from $k_L(u)$, everything here is a
@@ -147,7 +147,7 @@ $J_1$ topology), to
 $$
 \Gamma_\delta(u) = \bigl(N_\delta(u) - n_{\min}u\bigr)^2
 \left[\frac{1}{n_{\min}u+\lambda} + \frac{1}{n_{\min}(1-u)+\lambda}\right],
-\quad u \in [w/n_{\min},\, 1 - w/n_{\min}], \tag{4}
+\quad u \in [w/n_{\min},\, 1 - w/n_{\min}], \qquad (4)
 $$
 
 independently across features. Here $N_\delta(u) = \#\{i \le n_{\min} : \Phi(Z_i) \le u\}$
@@ -194,13 +194,13 @@ non-centrality
 
 $$
 \nu(t) = n\,\hat p(1-\hat p)\,\frac{\bigl(\Phi(t) - \Phi(t-\delta)\bigr)^2}{q(1-q)},
-\qquad q = \hat p\,\Phi(t-\delta) + (1-\hat p)\,\Phi(t). \tag{5}
+\qquad q = \hat p\,\Phi(t-\delta) + (1-\hat p)\,\Phi(t). \qquad (5)
 $$
 
 For $\hat p \to 0$ and small $\delta$ the maximum over $t$ is near $t = 0$:
 
 $$
-\nu^\star \approx \tfrac{2}{\pi}\, n_{\min}\,\delta^2 \qquad (\delta \lesssim 0.3). \tag{6}
+\nu^\star \approx \tfrac{2}{\pi}\, n_{\min}\,\delta^2 \qquad (\delta \lesssim 0.3). \qquad (6)
 $$
 
 *Proof.* $X^2/n$ converges to the squared phi coefficient
@@ -240,13 +240,13 @@ the prevalence. Then, exactly,
 
 $$
 \operatorname{Gain} = \sum_{c \in \{L,R\}} \frac{(D_c - r\lambda)^2}{H_c+\lambda}
-\;-\; \lambda r^2\,\frac{H+2\lambda}{H+\lambda}. \tag{7}
+\;-\; \lambda r^2\,\frac{H+2\lambda}{H+\lambda}. \qquad (7)
 $$
 
 When both children satisfy $H_c \gg \lambda$,
 
 $$
-\operatorname{Gain} \approx \frac{\hat p(1-\hat p)}{b(1-b)}\,X^2 \;-\; \lambda r^2 . \tag{8}
+\operatorname{Gain} \approx \frac{\hat p(1-\hat p)}{b(1-b)}\,X^2 \;-\; \lambda r^2 . \qquad (8)
 $$
 
 *Proof.* Write $rH_c + D_c = r(H_c+\lambda) + (D_c - r\lambda)$ and expand:
@@ -262,7 +262,7 @@ So every balanced split pays a fixed toll $\lambda r^2$. It is positive only if
 
 $$
 X^2 > \lambda\,\frac{(b-\hat p)^2}{b(1-b)\,\hat p(1-\hat p)} \approx \frac{0.136\,\lambda}{\hat p}
-\quad\text{(automatic intercept, small } \hat p). \tag{9}
+\quad\text{(automatic intercept, small } \hat p). \qquad (9)
 $$
 
 At $\hat p = 0.001$ that is $X^2 > 136$, far above anything a feature with a

@@ -5,11 +5,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p build
-SECTIONS=(sections/0*.md sections/9*.md)
+SECTIONS=(sections/0*.md sections/90_references.md sections/91_appendix_a.md sections/92_appendix_b.md)
 COMMON=(metadata.yaml "${SECTIONS[@]}" --citeproc --bibliography=references.bib
-        --resource-path=.:.. --number-sections=false)
+        --resource-path=.:..)
 pandoc "${COMMON[@]}" -o build/paper.docx
-pandoc "${COMMON[@]}" --standalone --mathjax --toc -o build/paper.html
+pandoc "${COMMON[@]}" --standalone --embed-resources --mathml --toc -o build/paper.html
 if command -v xelatex >/dev/null 2>&1; then
   pandoc "${COMMON[@]}" --pdf-engine=xelatex -V geometry:margin=1in -o build/paper.pdf
 fi

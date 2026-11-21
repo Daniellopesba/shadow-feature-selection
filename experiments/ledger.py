@@ -144,15 +144,20 @@ def p4_p5(r):
 
 
 def p6(r):
-    a = r[(r.intercept == "auto") & (r.tree_method == "hist")]
-    ns = a.groupby(["p"]).outcome.apply(lambda v: (v == "no_split").mean())
+    a = r[(r.intercept == "auto") & (r.n_min == 50) & (r.delta == 0.5)]
+    meas = {}
+    for (tm, p), v in a.groupby(["tree_method", "p"]).outcome:
+        meas[(tm, p)] = (
+            (v == "no_split").mean(),
+            (v == "noise").sum() / max((v != "no_split").sum(), 1),
+        )
     pr = r[(r.intercept == "prior")].outcome.eq("no_split").mean()
-    # theory: under exact greedy the root splits iff some feature has Gain > 0 by (7)
-    preds = []
+    # theory: under exact greedy the root splits iff some feature has Gain > 0, eq. (7)
+    preds = {}
     for p in (0.001, 0.01, 0.1):
         n = int(50 / p)
         cnt = 0
-        for seed in range(60):
+        for seed in range(100):
             X, y = make_dataset(n, p, 0.5, 1, 9, seed)
             b = 1 / (1 + np.exp(-(4 * y.mean() - 2)))
             best = max(
@@ -160,15 +165,20 @@ def p6(r):
                 for j in range(10)
             )
             cnt += best <= 0
-        preds.append(f"p={p}: {cnt / 60:.2f}")
+        preds[p] = cnt / 100
+    txt = "; ".join(
+        f"p={p}: predicted {preds[p]:.2f}, measured exact {meas[('exact', p)][0]:.2f}, "
+        f"hist {meas[('hist', p)][0]:.2f}"
+        for p in (0.001, 0.01, 0.1)
+    )
     emit(
         "P6",
-        "Auto intercept: root often does not split, more so as p falls (Prop 5)",
-        "measured no-split rate (hist, all n_min, delta): "
-        + ", ".join(f"p={k}: {v:.2f}" for k, v in ns.items())
-        + f"; prior intercept: {pr:.2f}. Eq. (7) exact-greedy prediction at n_min=50, "
-        "delta=0.5: " + ", ".join(preds),
-        "confirmed",
+        "Automatic intercept: the first tree often does not split, more so as p falls "
+        "(Prop 5, eq. 7). Cell n_min=50, delta=0.5",
+        f"P(no split) {txt}. When the exact-search root does split at p=0.001, a noise feature "
+        f"wins {meas[('exact', 0.001)][1]:.0%} of the time. Prevalence intercept: no-split rate "
+        f"{pr:.2f}",
+        "confirmed (exact); hist removes the extreme splits, so it almost never splits",
     )
 
 

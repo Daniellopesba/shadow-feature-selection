@@ -31,7 +31,7 @@ for n_pos in (212, 80, 30, 12):
     idx = np.concatenate([pos, np.flatnonzero(y0 == 0)])
     X, y = X0[idx], y0[idx]
     sel = ShadowFeatureSelector(
-        RandomForestClassifier(n_estimators=200, n_jobs=-1), n_iter=20, random_state=0
+        RandomForestClassifier(n_estimators=100, n_jobs=1), n_iter=20, random_state=0
     )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")

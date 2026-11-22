@@ -10,6 +10,10 @@ Factor ``intercept``:
   * ``prior`` -- base_score set to the empirical prevalence n_min / n,
     which is what the first-split theory assumes.
 
+Both intercepts see the same datasets (common random numbers). Run under
+XGBoost >= 3 (see requirements-xgb3.txt) to write ``e2_sweep_xgb3``: the same
+datasets with XGBoost 3's own default intercept.
+
 The noise features in the data play the role of the shadows here.
 """
 
@@ -35,7 +39,7 @@ def scenarios(quick: bool, n_noise: int = 5, deltas=(0.0, 0.3, 0.5, 1.0)):
             n_min = int(round(n * p))
             if n_min < 5:
                 continue
-            reps = 3 if quick else (15 if n >= 50_000 else 25)
+            reps = 3 if quick else (25 if n >= 50_000 else 40)
             out.append(
                 dict(
                     regime=regime,
@@ -77,8 +81,14 @@ if __name__ == "__main__":
     ap.add_argument("--quick", action="store_true", help="tiny profile; writes *_quick files")
     ap.add_argument("--n-noise", type=int, default=5)
     a = ap.parse_args()
-    if a.n_noise == 5:
-        run_grid("e2_sweep", scenarios(a.quick), worker)
+    import xgboost
+
+    if int(xgboost.__version__.split(".")[0]) >= 3:
+        # XGBoost 3.x: its own default intercept only, on the same datasets
+        sc = [s for s in scenarios(a.quick, a.n_noise) if s["intercept"] == "auto"]
+        run_grid("e2_sweep_xgb3", sc, worker, seed_exclude=("intercept",))
+    elif a.n_noise == 5:
+        run_grid("e2_sweep", scenarios(a.quick), worker, seed_exclude=("intercept",))
     else:  # robustness: more shadows, delta = 0.5, prior intercept only
         sc = [s for s in scenarios(a.quick, a.n_noise, deltas=(0.5,)) if s["intercept"] == "prior"]
         run_grid(f"e2_sweep_noise{a.n_noise}", sc, worker)

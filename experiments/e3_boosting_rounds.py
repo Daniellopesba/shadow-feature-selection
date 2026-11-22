@@ -71,4 +71,6 @@ def worker(s, r, seed):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true", help="tiny profile; writes *_quick files")
-    run_grid("e3_boosting_rounds", scenarios(ap.parse_args().quick), worker)
+    run_grid(
+        "e3_boosting_rounds", scenarios(ap.parse_args().quick), worker, seed_exclude=("intercept",)
+    )

@@ -67,11 +67,18 @@ def run_grid(
     scenarios: Iterable[dict],
     worker: Callable[[dict, int, int], list[dict]],
     n_jobs: int = -1,
+    seed_exclude: tuple[str, ...] = (),
 ) -> pd.DataFrame:
     """Run ``worker(scenario, repeat_idx, seed)`` for every scenario x repeat.
 
     Each scenario needs an ``n_repeats`` key. Workers return a list of row
     dicts; scenario parameters are merged into every row.
+
+    The seed of a repeat is a hash of the scenario parameters, except
+    ``n_repeats`` and the keys in ``seed_exclude``. Keys that do not change the
+    data (the learner, the intercept) belong in ``seed_exclude``: scenarios that
+    differ only in those keys then see identical datasets (common random
+    numbers), so comparisons between them are paired.
     """
     name += SUFFIX
     scenarios = list(scenarios)
@@ -82,7 +89,8 @@ def run_grid(
     print(f"[{name}] {len(scenarios)} scenarios, {len(tasks)} tasks", flush=True)
 
     def _one(s, r):
-        seed = derive_seed(scenario_key({k: v for k, v in s.items() if k != "n_repeats"}), r)
+        skip = {"n_repeats", *seed_exclude}
+        seed = derive_seed(scenario_key({k: v for k, v in s.items() if k not in skip}), r)
         rows = worker(s, r, seed)
         return [{**s, "repeat": r, "seed": seed, **row} for row in rows]
 
@@ -115,11 +123,18 @@ def versions() -> dict[str, str]:
         "sklearn": sklearn.__version__,
         "cpu_count": str(os.cpu_count()),
     }
+    for mod in ("xgboost", "lightgbm", "shap", "boruta"):
+        try:
+            v[mod] = __import__(mod).__version__
+        except Exception:  # noqa: BLE001  (missing or broken optional dependency)
+            pass
     try:
-        import xgboost
+        import subprocess
 
-        v["xgboost"] = xgboost.__version__
-    except ImportError:
+        v["git_commit"] = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True
+        ).stdout.strip()
+    except OSError:
         pass
     return v
 

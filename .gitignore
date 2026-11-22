@@ -10,3 +10,4 @@ dist/
 .ruff_cache/
 paper/build/
 results/*_quick.*
+experiments/data_cache/

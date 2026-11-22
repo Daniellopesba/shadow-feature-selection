@@ -22,6 +22,7 @@ Method & $\nmin = 10$ & 25 & 50 & 100 & 250 & s\\
   \item \emph{Model-X knockoffs are weak with ten candidates:} knockoff+ at $q = 0.2$ drops 0.70 at $\nmin = 50$. Ten candidates leave the filter little room, so this does not settle how knockoffs fare on wide tables.
   \item \emph{Penalised regression trades one error for the other.} Cross-validated $\ell_1$-logistic regression keeps almost every candidate, relevant or not. Stability selection with $\E V \le 1$ selects almost nothing, because with $d = 10$ its bound allows about 1.4 features per subsample \citep{meinshausen2010stability}.
   \item \emph{Boruta-style rounds help only if tentative features are kept:} 0.07 dropped at $\nmin = 50$ at an FPR of about 0.15, against 0.53 dropped at an FPR near zero for accepted features only, as \cref{prop:rounds} predicts (P12).
+  \item \emph{BorutaPy with a class-balanced forest is the strongest tree-based selector:} with tentative features kept it drops 0.36 at $\nmin = 25$ and 0.08 at $\nmin = 50$ at a false positive rate of 0.06--0.12, close to the rank statistic, at about a thousand times its cost. With an unweighted forest it drops 0.63 at $\nmin = 25$.
   \item \emph{Class weights, downsampling and early stopping do not help}; none changes $\nmin$.
 \end{enumerate}
 

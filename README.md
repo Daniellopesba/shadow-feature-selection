@@ -117,7 +117,7 @@ for e in e1_first_split e2_sweep e3_boosting_rounds e4_mitigations e5_backends \
          e6_univariate e7_rounds e8_many_shadows; do python $e.py; done
 python e2_sweep.py --n-noise 20
 python make_figures.py && python ledger.py
-cd ../paper && ./build.sh            # needs pandoc >= 3
+cd ../paper && ./build.sh            # needs pandoc >= 3; PDF via xelatex or Node+Playwright
 ```
 
 The whole set takes about 2.5 hours on 4 cores. Add `--quick` to any

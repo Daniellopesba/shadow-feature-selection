@@ -9,7 +9,7 @@ description = "Shadow-feature selection with diagnostics for class imbalance (mi
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Dan Avraham" }]
+authors = [{ name = "Daniellopesba" }]
 keywords = ["feature selection", "boruta", "shadow features", "class imbalance", "gradient boosting"]
 classifiers = [
     "Programming Language :: Python :: 3",

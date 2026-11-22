@@ -1,6 +1,6 @@
 ---
 title: "Shadow-Feature Selection Under Class Imbalance: The Minority Count Decides"
-author: "Dan Avraham"
+author: "Daniellopesba"
 date: "November 2026"
 abstract: |
   The shadow-feature heuristic, popularised by Boruta, judges each feature

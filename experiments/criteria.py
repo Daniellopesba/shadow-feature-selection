@@ -50,7 +50,8 @@ CRITERIA = {
         statement="thm:scaling",
         test=(
             "incremental effect of log10 p on the root decision given s: logistic regression of the "
-            "per-run root choice on a monotone spline of s plus beta * log10 p, clustered by cell"
+            "per-run root choice on a cubic B-spline of log s plus beta * log10 p (exact search), "
+            "cluster-robust by cell"
         ),
         rule="95% CI of the change in win probability per decade of p lies within [-0.05, 0.05]",
     ),
@@ -96,7 +97,10 @@ CRITERIA = {
     ),
     "P14": dict(
         statement="prop:mw (non-Gaussian features)",
-        test="Mann-Whitney keep rate of relevant columns under t3, log-normal and correlated-Gaussian features (E9) vs the s_AUC prediction",
+        test=(
+            "Mann-Whitney keep rate of relevant columns (shadow rule and BH q = 0.1) under t3, "
+            "log-normal and correlated-Gaussian features (E9) vs the s_AUC prediction"
+        ),
         rule="within 0.05 + 2 SE in every informative cell",
     ),
     "P15": dict(

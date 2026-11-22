@@ -1,1 +1,15 @@
-% appendix_agreement (to be written)
+\section{Theory against simulation}\label{app:agreement}
+
+Every quantitative statement of \cref{sec:theory} that a simulation can test is listed in \cref{tab:agreement}. Before computing any comparison we fixed, for each row, the statistic, the prediction and the rule that turns them into a verdict; the rules are in \code{experiments/criteria.py} and \code{experiments/paper\_numbers.py} applies them, so no verdict is written by hand. The conventions are:
+\begin{itemize}
+  \item Standard errors are Monte Carlo standard errors clustered by data set: repeats are independent, features within a data set are not. When the prediction is itself simulated, its Monte Carlo variance is added.
+  \item ``Within $\tau + 2$\,SE'' means $|\text{measured} - \text{predicted}| \le \tau + 2\,\mathrm{SE}$; a one-sided bound is met when measured $\le$ bound $+\, 2$\,SE.
+  \item A cell whose prediction and measurement are both below 0.02, or both above 0.98, carries no information and is excluded.
+  \item Each row also reports a p-value for \emph{exact} agreement (Bonferroni-combined over the row's cells), Holm-adjusted over rows. A tolerance rule can pass while the exact p-value is small: the tolerance $\tau$ allows for known finite-sample effects that the limit theorems ignore, and the p-value shows where they are detectable.
+\end{itemize}
+Of the \numHolmTests{} rows with a p-value, \numHolmRejected{} have a Holm-adjusted value below 0.05.
+
+{\small
+\setlength{\tabcolsep}{4pt}
+\input{generated/table_agreement}
+}

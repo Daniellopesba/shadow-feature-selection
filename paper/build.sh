@@ -6,7 +6,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p build
-latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=build main.tex >/dev/null
+latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=build main.tex >/dev/null || { grep -n "^!" build/main.log; exit 1; }
 cp build/main.pdf paper.pdf
 latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=build -jobname=paper_anonymous \
   -usepretex='\def\anonymous{1}' main.tex >/dev/null

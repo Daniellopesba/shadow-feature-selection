@@ -20,6 +20,18 @@ In the first tree, $H_L\ge w$ means $n_L\ge w/(b(1-b))$. Under the null, a child
 
 So XGBoost's default $w = 1$ rules out, under the prevalence intercept, the splits whose children are expected to hold fewer than about one positive, which is where the heavy tail lives; under the 2.x default it protects almost nothing. With \code{hist}, children are also unions of bins, which in practice bounds them below by roughly $n/\code{max\_bin}$ samples; this is a description of the binning, not part of the proposition.
 
+\subsection{Signal at a fixed threshold}\label{app:fixed}
+
+\begin{proposition}[signal at a fixed threshold]\label{prop:fixed}
+In the limit of \cref{thm:limit}, $N(u) \sim \Bin(\nmin, G(u))$, and the standardised deviation $(N(u)-\nmin u)^2/(\nmin u(1-u))$, which is $\Gamma(u)$ for $\lambda = 0$, has mean $G(u)(1-G(u))/(u(1-u)) + \nu(u)$ with non-centrality $\nu(u) = \nmin (G(u)-u)^2/(u(1-u))$. If $\nmin \to \infty$ along a sequence of placement laws $G_{\nmin}$ with $\sqrt{\nmin}\,(G_{\nmin}(u) - u) \to -c$ for a fixed $u$, the standardised count $(N(u) - \nmin u)/\sqrt{\nmin u(1-u)}$ converges in law to $\mathcal N(-c/\sqrt{u(1-u)},\,1)$. In the Gaussian model,
+\begin{equation}\label{eq:twopi}
+  \lim_{\delta\to 0}\, \frac{\max_u \nu(u)}{\nmin\delta^2} = \frac{2}{\pi},
+\end{equation}
+attained at the median split $u \to 1/2$.
+\end{proposition}
+
+The proof is in \cref{app:proof-fixed}. The ratio $\varphi(x)^2/(\Phi(x)(1-\Phi(x)))$ that appears is the efficiency of dichotomising a normal sample at $x$ \citep{cox1957note}. At finite $\delta$ the best threshold moves into the positives' tail and the maximum exceeds $(2/\pi)\nmin\delta^2$, by a factor of 1.03, 1.09 and 1.47 at $\delta = 0.3$, 0.5 and 1. So $(2/\pi)s$ is the small-effect value, not an upper bound.
+
 \subsection{Histogram search}\label{app:hist}
 
 \begin{corollary}[histogram search]\label{cor:hist}
@@ -33,6 +45,9 @@ Under (H1) the cut $c^n_j$ has $F_n(c^n_j)\to j/B$, where $F_n$ is the empirical
 (H1) is an assumption about XGBoost's quantile sketch. In the first tree the Hessian is constant, so the sketch is unweighted, but we have not verified (H1) analytically. Every prediction for \code{hist} in this paper is therefore conditional on it.
 
 \subsection{Evidence for \texorpdfstring{\cref{conj:drift}}{Conjecture 1}}\label{app:conj1}
+
+The unregularised analogue: the squared supremum of the standardised uniform empirical process over $[a_m, 1-a_m]$, with $a_m \to 0$ and $m a_m \to \infty$, is $2\log\log(1/a_m)(1 + o_P(1))$ \citep{jaeschke1979asymptotic,csorgo1993weighted}. What is unproved is the regularised boundary region, where $\nmin a_{\nmin} = w$ stays bounded and the classical result does not apply. Matching the centre drift $2s/\pi$ against the null level $2\log\log\nmin$ suggests, as a heuristic, that the win probability tends to $1/(K+1)$ for $s = c\log\log\nmin$ with $c < \pi$ and to 1 with $c > \pi$, so detection at fixed power needs $s$ to grow like $\log\log\nmin$. Over the range we can compute, the median null supremum is about $1.34\times 2\log\log\nmin$, so part (a) is an asymptotic statement that the evidence does not yet reach.
+
 
 Numerical evaluation of the limit \eqref{eq:limit} with $\lambda = w = 1$ and $K = 9$ null features (1{,}500 signal and 6{,}000 null draws per column; Monte Carlo standard error about 0.01):
 

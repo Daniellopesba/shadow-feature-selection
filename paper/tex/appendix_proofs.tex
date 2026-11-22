@@ -4,7 +4,11 @@ Notation: $m = \nmin$; $\mathcal N(\mu,1)$ is the normal law; $\varphi$ and $\Ph
 
 \subsection{Proof of \texorpdfstring{\cref{prop:toll}}{the intercept toll}}\label{app:proof-toll}
 
-Write $rH_c + D_c = r(H_c+\lambda) + (D_c - r\lambda)$ and expand: $G_c^2/(H_c+\lambda) = r^2(H_c+\lambda) + 2r(D_c - r\lambda) + (D_c - r\lambda)^2/(H_c+\lambda)$. Summing over the two children and using $D_L + D_R = 0$ and $H_L + H_R = H$ gives $r^2H - 2\lambda r^2 + \sum_c (D_c-r\lambda)^2/(H_c+\lambda)$. The parent term is $(rH)^2/(H+\lambda) = r^2H - \lambda r^2H/(H+\lambda)$. Subtracting gives \eqref{eq:toll}.
+For a child $c$ let $D_c = G_c - rH_c = -(k_c - \phat\,n_c)$. We first show the exact identity
+\begin{equation}\label{eq:toll}
+  \Gain = \sum_{c\in\{L,R\}} \frac{(D_c - r\lambda)^2}{H_c + \lambda} - \lambda r^2\,\frac{H + 2\lambda}{H+\lambda}.
+\end{equation}
+Write $G_c = rH_c + D_c = r(H_c+\lambda) + (D_c - r\lambda)$ and expand: $G_c^2/(H_c+\lambda) = r^2(H_c+\lambda) + 2r(D_c - r\lambda) + (D_c - r\lambda)^2/(H_c+\lambda)$. Summing over the two children and using $D_L + D_R = 0$ and $H_L + H_R = H$ gives $r^2H - 2\lambda r^2 + \sum_c (D_c-r\lambda)^2/(H_c+\lambda)$. The parent term is $(rH)^2/(H+\lambda) = r^2H - \lambda r^2H/(H+\lambda)$. Subtracting gives \eqref{eq:toll}.
 
 For the approximation, $\sum_c D_c^2/H_c$ is the right-hand side of \cref{prop:chi2} at the root, $\kappa X^2$ with $\kappa = \phat(1-\phat)/(b(1-b))$. Expanding the squares in \eqref{eq:toll}, the gain minus $(\kappa X^2 - \lambda r^2)$ is the sum of four terms: $-\sum_c D_c^2\lambda/(H_c(H_c+\lambda))$, $-2r\lambda\sum_c D_c/(H_c+\lambda)$, $r^2\lambda^2\sum_c 1/(H_c+\lambda)$ and $-\lambda^2r^2/(H+\lambda)$. With $H_{\min} = \min(H_L, H_R)$, and since $D_c/H_c = (\phat - \phat_c)/(b(1-b))$ and $r = (b-\phat)/(b(1-b))$, bounding each term gives
 \begin{equation}\label{eq:remainder}
@@ -58,6 +62,10 @@ Fix one feature with shift $\delta = \delta_m$ and $s_m = m\delta_m^2\to s$. Let
 (f) For $s = 0$ the $K+1$ suprema are i.i.d.\ with a continuous law, so each is the largest with probability $1/(K+1)$.
 
 \emph{General local alternatives.} The argument uses the Gaussian model only in (a). If instead $\sqrt m(u - G_m(u))\to h(u)$ uniformly on the window for a continuous $h$, represent the placements as $V_i = G_m^{-1}(U_i)$ with $U_i$ i.i.d.\ uniform, so that $V_i\le u$ if and only if $U_i\le G_m(u)$ and $N(u) = m\hat G_m(G_m(u))$, with $\hat G_m$ the empirical distribution function of the $U_i$. Then $(N(u)-mu)/\sqrt m = \alpha_m(G_m(u)) + \sqrt m(G_m(u)-u)$; step (b) needs only $\|G_m - \mathrm{id}\|\to 0$, which holds on the window, and the limit is $(\mathbb B(u) - h(u))^2/(u(1-u))$. Steps (d)--(f) hold with $\sqrt s\,\psi$ replaced by $h$, and (e) gives monotonicity along $h \mapsto t h$, $t \ge 0$. \hfill$\square$
+
+\subsection{Proof of \texorpdfstring{\cref{prop:level}}{Proposition 4}}\label{app:proof-level}
+
+By (A0), (A3) and the strong null, the rank vector of $X_j$ is uniform over permutations and independent of $Y$ and the other candidates; by (A1) the importances depend on the columns only through such rank vectors. (A3) is needed only for $X_j$ and the shadows' source columns. A shadow's rank vector is the rank vector of its source composed with an independent uniform permutation, so it is again uniform and independent of everything else, as is the rank vector of an i.i.d.\ continuous noise column. So the rank vectors of $X_j$ and of the $K$ shadows are i.i.d.\ and independent of $Y$ and the remaining columns, and by (A2) the $K+1$ importances are exchangeable; each is the strict maximum with probability at most $1/(K+1)$. For per-feature shadows, (A0) and the strong null give $X_j = \tau x$ for its multiset of values $x$ and a uniform permutation $\tau$ independent of $(Y, X_{C\setminus j})$; the shadows are $\tau_k x$ with $\tau_k = \varrho_k\tau$ for the shadows' independent uniform permutations $\varrho_k$, and $\tau, \tau_1, \dots, \tau_K$ are i.i.d.\ uniform. The $K+1$ columns are therefore exchangeable given the rest, and (A2) gives exchangeable importances without (A1) or (A3); ties, as with discrete columns, only make the inequality strict. Shadows of other candidates do no harm, being independent of the $\varrho_k$. \hfill$\square$
 
 \subsection{Proof of \texorpdfstring{\cref{prop:rounds}}{Proposition 5}}\label{app:proof-rounds}
 

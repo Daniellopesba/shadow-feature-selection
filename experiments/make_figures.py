@@ -463,16 +463,15 @@ FIG4_PANELS = {
         ("boruta_gain_strict", OI["vermillion"], "o", ":"),
         ("borutapy_balanced", OI["purple"], "s", "-"),
         ("oof_perm_2se", OI["orange"], "^", "-"),
-        ("knockoff", OI["green"], "v", "-"),
-        ("stability", OI["grey"], "x", "-"),
+        ("knockoff_plus", OI["green"], "v", "-"),
         ("mwu_bh_0.1", OI["black"], "D", "-"),
     ],
 }
 
 
-def fig4_methods():
+def fig3_methods():
     g = method_summary(load_methods())
-    fig, axes = plt.subplots(2, 2, figsize=(7.2, 4.9), sharex=True)
+    fig, axes = plt.subplots(2, 2, figsize=(7.2, 5.6), sharex=True)
     for j, (title, series) in enumerate(FIG4_PANELS.items()):
         for m, col, mk, ls in series:
             s = g[g.method == m].sort_values("n_min")
@@ -488,13 +487,15 @@ def fig4_methods():
                        ylim=(-0.01, 0.35))
         axes[1, j].axhline(1 / 11, color=OI["grey"], ls="--", lw=0.8)
         axes[1, j].text(11, 1 / 11 + 0.008, "1/(K+1) = 1/11", fontsize=6.5, color=OI["grey"])
-        axes[0, j].legend(loc="upper right", fontsize=6.2)
+        h, lab = axes[0, j].get_legend_handles_labels()
+        axes[1, j].legend(h, lab, loc="upper center", bbox_to_anchor=(0.5, -0.3), fontsize=6.5,
+                          ncol=1, frameon=False)
     axes[0, 0].set_ylabel("FNR (relevant dropped)")
     axes[1, 0].set_ylabel("FPR (irrelevant kept)")
     for ax in axes[0]:
         ax.set_xscale("log")
     fig.tight_layout()
-    save(fig, "fig4_methods")
+    save(fig, "fig3_methods")
 
 
 TABLE2_ROWS = [
@@ -534,45 +535,6 @@ def table_methods():
     write_tex("table_methods", "\n".join(lines) + "\n")
     # standard errors, for the text
     g.to_csv(RESULTS / "methods_summary.csv", index=False)
-
-
-def fig3_rank_vs_split():
-    from scipy import stats
-
-    from shadowselect.theory import limit_max_gain, rank_test_power
-
-    K, m = 9, 50
-    a = 1 / (K + 1)
-    svals = np.array([1, 2, 3, 5, 7, 10, 15, 20, 25, 35])
-    null = np.sort(limit_max_gain(m, 0.0, n_rep=8000, seed=2))
-    maxrule = []
-    for s_ in svals:
-        sig = limit_max_gain(m, np.sqrt(s_ / m), n_rep=1500, seed=1)
-        f = np.searchsorted(null, sig, side="left") / len(null)
-        maxrule.append(np.mean(f**K))
-    c = stats.chi2.ppf(1 - a, 1)
-    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.8))
-    ax = axes[0]
-    ax.plot(svals, [rank_test_power(s_, a) for s_ in svals], "-o", ms=3, color=OI["black"],
-            label="Mann–Whitney (Prop. 6)")
-    ax.plot(svals, stats.ncx2.sf(c, 1, 2 * svals / np.pi), "-s", ms=3, color=OI["orange"],
-            label="fixed median split (Prop. 3)")
-    ax.plot(svals, maxrule, "-^", ms=3, color=OI["blue"], label="max rule, best root split (Thm 1)")
-    ax.set(xscale="log", xlabel="$s = n_{\\min}\\delta^2$", ylabel="power at level 0.1",
-           title="(a) theory: three tests on the same data")
-    ax.legend(fontsize=6.5)
-    g = method_summary(load_methods())
-    ax = axes[1]
-    for m, col, mk in (("mwu_shadow_max", OI["black"], "D"), ("oneshot_gain", OI["blue"], "o"),
-                       ("oneshot_shap", OI["green"], "^")):
-        s = g[g.method == m].sort_values("n_min")
-        ax.errorbar(s.n_min, s.fnr, yerr=2 * s.fnr_se, marker=mk, ms=3, color=col, lw=1,
-                    elinewidth=0.6, label=f"{METHOD_LABELS[m]} (FPR {s.fpr.mean():.2f})")
-    ax.set(xscale="log", xlabel="$n_{\\min}$ ($\\delta$ = 0.5)", ylabel="FNR",
-           title="(b) measured at the same level, same data")
-    ax.legend(fontsize=6.5)
-    fig.tight_layout()
-    save(fig, "fig3_rank_vs_split")
 
 
 # --------------------------------------------------------------------- E9 robustness, E11 real data
@@ -634,8 +596,8 @@ if __name__ == "__main__":
     import sys
 
     jobs = [fig1_first_split, figA1_intercept_toll, fig2_scaling, figA2_fnr_vs_nmin, table_e2,
-            figA3_rounds, figA4_mechanism, figA5_backends, figA6_shadows, fig3_rank_vs_split,
-            fig4_methods, table_methods, table_robustness, table_realdata]
+            figA3_rounds, figA4_mechanism, figA5_backends, figA6_shadows,
+            fig3_methods, table_methods, table_robustness, table_realdata]
     only = set(sys.argv[1:])
     for f in jobs:
         if only and f.__name__ not in only:

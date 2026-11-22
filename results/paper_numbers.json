@@ -201,10 +201,10 @@
   "PfiveAME": "-0.003",
   "PfiveLo": "-0.017",
   "PfiveHi": "+0.011",
-  "EtwoFits": "6{,}000",
+  "EtwoFits": "9{,}000",
   "EthreeFits": "480",
   "EfourFits": "240",
-  "EfiveFits": "720",
+  "EfiveFits": "1{,}440",
   "EnineFits": "--",
   "EtenFits": "--",
   "EelevenFits": "--",
@@ -230,7 +230,7 @@
   "GapLowDelta": "0.3",
   "GapLowAuto": "0.53",
   "GapLowPrior": "0.58",
-  "XgbThreeMaxDiff": "--",
-  "XgbThreeCells": "--"
+  "XgbThreeMaxDiff": "0.00",
+  "XgbThreeCells": "63"
  }
 }

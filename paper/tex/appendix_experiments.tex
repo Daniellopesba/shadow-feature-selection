@@ -75,6 +75,23 @@ E3 reads the importances after the first $k$ boosting rounds of the E2 ensembles
 \caption{E8: false negative rate of the one-shot rule with $K = 5$, 50 and 200 shadows ($\delta = 0.5$, $\phat = 0.1$). Error bars: two standard errors.}\label{fig:shadows}
 \end{figure}
 
+\subsection{Wide tables}\label{app:wide}
+
+\Cref{tab:wide} gives the full results of E4w (\cref{sec:widetables}): 10 repeats per cell; $K = 10$ shadows unless stated; Bonferroni or Benjamini--Hochberg over the per-candidate binomial tests.
+
+\begin{table}[t]
+\centering\small
+\caption{A wide table (E4w: 100 candidates, 5 relevant, $\delta = 0.5$, $\phat = 0.05$, 20 rounds where applicable, XGBoost mean gain): FNR / FPR.}\label{tab:wide}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Method & $\nmin = 25$ & 50 & 100 & 250\\
+\midrule
+\csname @@input\endcsname generated/table_wide
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Other learners}\label{app:backends}
 
 E5 repeats the E2 design at $\delta = 0.5$ with scikit-learn gradient boosting, random forests (full depth, depth 5, and depth 5 with class-balanced bootstrap samples) and LightGBM, each with its native importance (\cref{fig:backends}). At $\phat = 0.1$ every learner fails at small $\nmin$ much as XGBoost does (false negative rates 0.40--0.55 at $\nmin = 25$), as \cref{prop:level,cor:shadows} lead one to expect. Two differences stand out. LightGBM, which bounds children by sample count rather than by Hessian, keeps a residual effect of the prevalence at fixed $\nmin$: at $\nmin = 100$ its rate is 0.45--0.47 at $\phat = 0.01$ against 0.13--0.15 at $\phat = 0.1$; we have no account of this. And the depth-5 random forest with class-balanced bootstrap samples has the lowest rate of all learners at every $\nmin$ (0.07 and 0.16 at $\nmin = 50$, against 0.18--0.48 for the others). Its level is still $1/(K+1)$ by \cref{prop:level}, so this is a gain in power; class weights in XGBoost brought no such gain in E4.
@@ -84,5 +101,3 @@ E5 repeats the E2 design at $\delta = 0.5$ with scikit-learn gradient boosting, 
 \includegraphics[width=\textwidth]{figA5_backends}
 \caption{E5: false negative rate of the one-shot rule ($K = 5$) with other learners, at $\phat = 0.1$ and $0.01$. Error bars: two standard errors.}\label{fig:backends}
 \end{figure}
-% LEVEL_APPENDIX_TEXT
-% WIDE_TEXT

@@ -15,29 +15,34 @@ repository has three parts:
 The shadow-feature trick adds known-useless features ("shadows") and drops
 real features whose importance falls below theirs. When the positive class
 is rare, the trick drops genuinely predictive features, often most of them.
-How often is governed by the **number of positive examples** $n_{\min}$, not the
-imbalance ratio. More precisely, it is governed by $s = n_{\min}\cdot\delta^2$,
-where $\delta$ is the feature's standardised effect size. The paper proves this
-for the first boosting round: XGBoost's split gain is exactly Pearson's
-chi-square statistic, its small-prevalence limit depends only on $n_{\min}$ and
-$\delta$, and as $n_{\min}$ grows only on $s$. It also proves that the max-shadow
-rule keeps an irrelevant feature with probability at most $1/(K+1)$ for $K$
-shadows whatever the imbalance, so imbalance only costs power, and that a
-simple rank test on the same data has more power ($3s/\pi$ against $2s/\pi$).
-Across 63 simulated scenarios with 300-tree models, $s$ explains 94% of the
-variance in the failure rate (90% out of sample), and $p$ explains almost
-none. Part of what looked like an imbalance effect is XGBoost 2.x's default
-intercept, which is about 0.12 whenever $p$ is small. Set `base_score` to the
-prevalence.
+How often is governed by the **number of positive examples** $n_{\min}$ and
+the effect size, not by the imbalance ratio: through $s = n_{\min}\delta^2$ for
+a standardised mean shift $\delta$, or its rank analogue
+$s_{\mathrm{AUC}} = 4\pi n_{\min}(\mathrm{AUC} - 1/2)^2$ for any feature.
+The paper proves this for the first tree of a boosted ensemble (its split gain
+is Pearson's chi-square, and as the prevalence goes to zero the root split
+depends only on $n_{\min}$ and where the positives sit among the negatives).
+It also proves that the max-shadow rule keeps an irrelevant feature with
+probability at most $1/(K+1)$ for $K$ shadows whatever the imbalance, so
+imbalance costs power, not false positives, and that a Mann-Whitney test on
+the same data has power that depends only on $s_{\mathrm{AUC}}$. Every proved
+statement was checked against simulation criteria fixed in advance, and full
+300-tree ensembles fail at least as often as the first-tree theory predicts.
+In XGBoost 1.x and 2.x much of what looks like an imbalance effect is the
+default intercept: set `base_score` to the prevalence (XGBoost 3 does this by
+default).
 
-| positives × effect² ($s = n_{\min}\delta^2$) | features wrongly dropped by the one-shot max-shadow rule (5 shadows) |
-|:--|:--|
-| below 5 (e.g. 50 positives, δ = 0.3) | 64–84% |
-| 10–25 (e.g. 50 positives, δ = 0.5) | 22–67%, typically 30–45% |
-| above 60 (e.g. 250 positives, δ = 0.5) | at most 4% |
+| positives × effect² ($s = n_{\min}\delta^2$) | example | features wrongly dropped by the one-shot max-shadow rule (5 shadows), median over scenarios |
+|:--|:--|:--|
+| below 5 | 50 positives, δ = 0.3 | 67% (58–85%) |
+| 5–10 | 100 positives, δ = 0.3 | 48% (38–53%) |
+| 10–25 | 50 positives, δ = 0.5 | 32% (26–58%) |
+| 25–60 | 150 positives, δ = 0.5 | 7% (0–25%) |
+| 60 or more | 250 positives, δ = 0.5 | 0% (0–3%) |
 
 More shadows make it worse: with 200 shadows, 100 positives and δ = 0.5,
-99% are dropped.
+99% are dropped. Below about 25 positives no method we tested separates weak
+signal from noise reliably.
 
 ## Install
 

@@ -44,7 +44,11 @@ Under (H1) the cut $c^n_j$ has $F_n(c^n_j)\to j/B$, where $F_n$ is the empirical
 
 (H1) is an assumption about XGBoost's quantile sketch. In the first tree the Hessian is constant, so the sketch is unweighted, but we have not verified (H1) analytically. Every prediction for \code{hist} in this paper is therefore conditional on it.
 
-\subsection{Evidence for \texorpdfstring{\cref{conj:drift}}{Conjecture 1}}\label{app:conj1}
+\subsection{The full threshold window}\label{app:conj1}
+
+\begin{conjecture}[slow drift on the full window]\label{conj:drift}
+Let $M^{(0)}_{\nmin}$ be the null supremum of \eqref{eq:limit} on the full window $[w/\nmin, 1-w/\nmin]$, with $\lambda, w > 0$ fixed, and let $\omega(s,K;\nmin)$ be the root win probability of an informative Gaussian feature with $\nmin\delta^2 = s$ against $K$ null features on that window. Then (a) $M^{(0)}_{\nmin}/(2\log\log\nmin) \to 1$ in probability as $\nmin\to\infty$; (b) at fixed $s$ and $K$, $\omega(s,K;\nmin) \to 1/(K+1)$; (c) in finite range, $\omega(12.5, 9;\nmin)$ is non-increasing in $\nmin$ and falls below 0.75 by $\nmin = 10^5$.
+\end{conjecture}
 
 The unregularised analogue: the squared supremum of the standardised uniform empirical process over $[a_m, 1-a_m]$, with $a_m \to 0$ and $m a_m \to \infty$, is $2\log\log(1/a_m)(1 + o_P(1))$ \citep{jaeschke1979asymptotic,csorgo1993weighted}. What is unproved is the regularised boundary region, where $\nmin a_{\nmin} = w$ stays bounded and the classical result does not apply. Matching the centre drift $2s/\pi$ against the null level $2\log\log\nmin$ suggests, as a heuristic, that the win probability tends to $1/(K+1)$ for $s = c\log\log\nmin$ with $c < \pi$ and to 1 with $c > \pi$, so detection at fixed power needs $s$ to grow like $\log\log\nmin$. Over the range we can compute, the median null supremum is about $1.34\times 2\log\log\nmin$, so part (a) is an asymptotic statement that the evidence does not yet reach.
 

@@ -1,0 +1,15 @@
+{
+  "experiment": "e5_backends",
+  "n_scenarios": 48,
+  "n_tasks": 720,
+  "wall_seconds": 705.6,
+  "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "pandas": "3.0.5",
+    "sklearn": "1.9.1",
+    "cpu_count": "4",
+    "xgboost": "2.1.3"
+  }
+}

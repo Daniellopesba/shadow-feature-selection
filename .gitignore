@@ -3,4 +3,10 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .DS_Store
-executed/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+paper/build/
+results/*_quick.*

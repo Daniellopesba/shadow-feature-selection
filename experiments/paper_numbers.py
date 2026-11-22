@@ -700,6 +700,28 @@ def fit_counts():
         macro(f"{name}Fits", f"{total:,}".replace(",", "{,}") if total else "--", "{}")
 
 
+def run_time():
+    """Total wall time of the full (non-quick) runs, from the metadata files."""
+    times = {}
+    for f in sorted(RESULTS.glob("*.meta.json")):
+        if "quick" in f.name:
+            continue
+        m = json.loads(f.read_text())
+        if "wall_seconds" in m:
+            times[m.get("experiment", f.stem)] = m["wall_seconds"]
+    if not times:
+        return macro("RunTime", "--", "{}")
+    total = sum(times.values()) / 3600
+    top = max(times, key=times.get)
+    macro(
+        "RunTime",
+        f"The full set of experiments takes about {total:.0f} hours on four CPU cores, "
+        f"the longest being {top.split('_')[0].upper()} ({times[top] / 3600:.1f} hours); "
+        "every script also has a \\code{--quick} profile for a fast smoke test.",
+        "{}",
+    )
+
+
 # ------------------------------------------------------------------ output
 def holm(ps):
     ids = [k for k, v in ps.items() if v is not None]
@@ -791,4 +813,5 @@ if __name__ == "__main__":
     for pid in wanted:
         ALL[pid]()
     fit_counts()
+    run_time()
     write_outputs()

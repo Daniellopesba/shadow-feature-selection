@@ -1,6 +1,9 @@
 # Exact versions that produced results/ and figures/ (Python 3.13, Linux x86-64).
 # XGBoost is pinned to 2.1.3 on purpose: its default intercept estimate is
-# part of what the paper measures (see paper Section 4.2). Install with:
+# part of what the paper measures. Two experiments also run under other
+# XGBoost versions, each in its own environment with only xgboost changed:
+#   E2 (xgb3 arm): xgboost==3.1.3     E12 (intercepts): xgboost 1.7.6, 2.1.3, 3.1.3
+# Install with:
 #   pip install -e . -r requirements-experiments.txt
 numpy==2.5.3
 scipy==1.18.1
@@ -11,4 +14,7 @@ lightgbm==4.7.0
 matplotlib==3.11.2
 joblib==1.6.0
 tabulate==0.10.0
+shap==0.54.1
+Boruta==0.4.3
+pmlb==1.0.1.post3
 pytest>=7

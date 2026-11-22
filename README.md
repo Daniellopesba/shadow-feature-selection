@@ -3,8 +3,8 @@
 **Shadow-feature selection that is honest about class imbalance.** This
 repository has three parts:
 
-1. a paper, *Shadow-Feature Selection Under Class Imbalance: The Minority
-   Count Decides* ([PDF](paper/paper.pdf), sources in [`paper/`](paper/));
+1. a paper, *Shadow-Feature Selection Under Class Imbalance: How the Minority
+   Count Limits What Can Be Found* ([PDF](paper/paper.pdf), sources in [`paper/`](paper/));
 2. a small, tested Python package, `shadowselect`, for running Boruta-style
    selection and checking whether your data can support it;
 3. scripts that reproduce every figure and number in the paper
@@ -113,27 +113,35 @@ Practical rules (paper, Section 6):
 ```bash
 pip install -e . -r requirements-experiments.txt
 cd experiments
-for e in e1_first_split e2_sweep e3_boosting_rounds e4_mitigations e5_backends \
-         e6_univariate e7_rounds e8_many_shadows; do python $e.py; done
-python e2_sweep.py --n-noise 20
-python make_figures.py && python paper_numbers.py
-cd ../paper && ./build.sh            # needs pandoc >= 3; PDF via xelatex or Node+Playwright
+for e in e1_first_split e2_sweep e3_boosting_rounds e4_mitigations e4b_baselines \
+         e4c_borutapy e4w_wide e5_backends e6_univariate e7_rounds e8_many_shadows \
+         e9_robustness e10_discrete_level e11_real_data e12_intercepts; do python $e.py; done
+python make_figures.py      # figures/ and paper/generated/ tables
+python paper_numbers.py     # acceptance criteria and every number quoted in the paper
+cd ../paper && ./build.sh   # pdflatex + bibtex (TeX Live 2023 or later)
 ```
 
-The whole set takes about 2.5 hours on 4 cores. Add `--quick` to any
-experiment for a smoke run. Results are committed in `results/`, figures in
-`figures/`.
+Two runs need other XGBoost versions in separate environments (only `xgboost`
+changes): `e2_sweep.py` again under XGBoost 3.1.3, and `e12_intercepts.py`
+under 1.7.6, 2.1.3 and 3.1.3; see `requirements-experiments.txt`.
+`e11_real_data.py` downloads five tables from PMLB and checks their SHA-256
+digests. Add `--quick` to any experiment for a smoke run. Results are
+committed in `results/`, figures in `figures/`, and `results/*.meta.json`
+records each run's library versions, commit and wall time.
 
 ## The paper
 
-[`paper/paper.pdf`](paper/paper.pdf) is the current version. Every main claim
-is either proved (Section 3 and Appendix C) or stated as a conjecture, and
-Appendix A compares each result with the simulations. To cite it:
+[`paper/paper.pdf`](paper/paper.pdf) is the current version;
+`paper/build.sh` also writes an anonymised build for double-blind review to
+`paper/build/paper_anonymous.pdf`. Every main claim is either proved (Section
+3 and Appendix A) or stated as a conjecture, and Appendix D compares each
+result with the simulations under acceptance criteria fixed in advance
+(`experiments/criteria.py`). To cite it:
 
 ```bibtex
 @misc{lopes2026shadow,
   author = {Daniel Lopes},
-  title  = {Shadow-Feature Selection Under Class Imbalance: The Minority Count Decides},
+  title  = {Shadow-Feature Selection Under Class Imbalance: How the Minority Count Limits What Can Be Found},
   year   = {2026},
   howpublished = {\url{https://github.com/Daniellopesba/shadow-feature-selection}}
 }
@@ -144,10 +152,10 @@ Appendix A compares each result with the simulations. To cite it:
 ```
 src/shadowselect/   selector.py, screening.py, diagnostics.py, theory.py, simulation.py
 tests/              unit tests (pytest), incl. numerical checks of the propositions
-experiments/        e1..e8 experiments, make_figures.py, paper_numbers.py
-results/            per-repeat results (csv.gz), run metadata, paper_numbers.md
-figures/            paper figures (png, pdf) and tables.md
-paper/              paper.pdf, sources (Markdown + BibTeX) and build script
+experiments/        e1..e12 experiments, criteria.py, make_figures.py, paper_numbers.py
+results/            per-repeat results (csv.gz), run metadata, paper_numbers.json
+figures/            paper figures (png, pdf)
+paper/              paper.pdf, LaTeX sources (TMLR style), generated tables, build script
 ```
 
 ## License

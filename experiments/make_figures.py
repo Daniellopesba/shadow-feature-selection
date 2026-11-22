@@ -553,6 +553,29 @@ def table_methods():
     g.to_csv(RESULTS / "methods_summary.csv", index=False)
 
 
+WIDE_ROWS = [
+    ("oneshot_gain_K10", "max rule, $K = 10$"),
+    ("oneshot_gain_K100", "max rule, $K = 100$"),
+    ("boruta_K10_bonferroni", "rounds, $K = 10$, Bonferroni"),
+    ("boruta_K10_bh", "rounds, $K = 10$, BH"),
+    ("boruta_K10_bh_strict", "rounds, $K = 10$, BH, accepted only"),
+    ("boruta_K100_bonferroni", "rounds, $K = 100$, Bonferroni (Boruta's $K$)"),
+    ("boruta_K100_bh", "rounds, $K = 100$, BH"),
+    ("mwu_bh_0.1", "Mann--Whitney, BH $q = 0.1$"),
+]
+
+
+def table_wide():
+    d = pd.read_csv(RESULTS / "e4w_wide.csv.gz")
+    g = d.groupby(["method", "n_min"])[["fnr", "fpr"]].mean()
+    nmins = sorted(d.n_min.unique())
+    lines = []
+    for m, lab in WIDE_ROWS:
+        cells = [f"{g.loc[(m, k), 'fnr']:.2f} / {g.loc[(m, k), 'fpr']:.3f}" for k in nmins]
+        lines.append(f"{lab} & " + " & ".join(cells) + r" \\")
+    write_tex("table_wide", "\n".join(lines) + "\n")
+
+
 # --------------------------------------------------------------------- E9 robustness, E11 real data
 DGP_LABELS = {
     "gauss": "Gaussian (baseline)",
@@ -613,7 +636,7 @@ if __name__ == "__main__":
 
     jobs = [fig1_first_split, figA1_intercept_toll, fig2_scaling, figA2_fnr_vs_nmin, table_e2, table_sbands,
             figA3_rounds, figA4_mechanism, figA5_backends, figA6_shadows,
-            fig3_methods, table_methods, table_robustness, table_realdata]
+            fig3_methods, table_methods, table_wide, table_robustness, table_realdata]
     only = set(sys.argv[1:])
     for f in jobs:
         if only and f.__name__ not in only:

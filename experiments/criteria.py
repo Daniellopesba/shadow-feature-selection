@@ -61,7 +61,7 @@ CRITERIA = {
     ),
     "P7": dict(
         statement="conj:ensemble (a)",
-        test="ensemble FNR (one-shot rule, prevalence intercept) vs root failure 1 - E[F0(M)^K], per informative cell",
+        test="ensemble FNR (one-shot rule, prevalence intercept) vs root failure 1 - E[Q(M)^K], per informative cell",
         rule="measured >= predicted - 2 SE in every informative cell",
     ),
     "P8": dict(
@@ -86,8 +86,8 @@ CRITERIA = {
     ),
     "P12": dict(
         statement="prop:rounds",
-        test="keep rate of irrelevant candidates after R rounds (E7) vs bound (10) and the limit bound 4 E[pi^2]",
-        rule="measured <= bound + 2 SE at every R; FPR at R = 60 <= 4 E[pi^2] + 2 SE",
+        test="keep rate of irrelevant candidates after R rounds (E7) vs bound (10) and the limit bound 4 E[theta^2]",
+        rule="measured <= bound + 2 SE at every R; FPR at R = 60 <= 4 E[theta^2] + 2 SE",
     ),
     "P13": dict(
         statement="prop:mw",

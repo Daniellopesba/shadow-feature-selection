@@ -1,0 +1,219 @@
+\section{Theory}\label{sec:theory}
+
+This section derives the behaviour of the shadow rule from the split criterion. Every statement carries one of five labels, used strictly. A \emph{Proposition} or \emph{Theorem} is proved (long proofs are in \cref{app:proofs}). A \emph{Corollary} follows from a proved statement in a few lines. A \emph{numerical evaluation} is a quantity defined exactly by a proved limit but without a closed form; we compute it by Monte Carlo on the limit object, not on XGBoost. A \emph{Conjecture} is not proved; we give the evidence and the experiment that tests it. A \emph{heuristic} is an informal argument that motivates an experiment and is not used as evidence.
+
+The proved results cover three objects: the \emph{first tree} of a gradient-boosted ensemble with log-loss (\cref{sec:gain,sec:limit,sec:scaling}); the shadow comparison itself, for any learner whose importances depend on each column only through its ranks (\cref{sec:level}); and a rank test applied to the same data (\cref{sec:rank}). For the full ensemble we state a conjecture (\cref{sec:ensemble}).
+
+\paragraph{Scope.} We analyse XGBoost's second-order split criterion with \emph{exact greedy} threshold search, in which every midpoint between distinct values is a candidate threshold. XGBoost's default since version~2.0 is \code{tree\_method="hist"} at every sample size; it restricts thresholds to at most \code{max\_bin}${}-1$ quantile cuts (default 255). \Cref{app:hist} extends the limit theorem to histogram search under an assumption on the quantile sketch, and we mark every prediction for \code{hist} that depends on it. LightGBM \citep{ke2017lightgbm} uses the same criterion with a prevalence intercept, but constrains children by sample count rather than by Hessian.
+
+\subsection{The split gain in the first tree}\label{sec:gain}
+
+For log-loss with raw score $F$ and $\sigma(F) = 1/(1+e^{-F})$, the gradient and Hessian of sample $i$ are $g_i = \sigma(F_i) - y_i$ and $h_i = \sigma(F_i)(1-\sigma(F_i))$. Before the first tree every sample has the score $F^{(0)} = \logit(b)$, where the \emph{base score} $b$ is the initial predicted probability, so $h_i = b(1-b)$ is constant in the whole first tree. For a set of samples $S$ write $G_S = \sum_{i\in S} g_i$, $H_S = \sum_{i\in S} h_i$, $n_S = |S|$ and $k_S$ for its number of positives. Splitting node $S$ into $L$ and $R$ has gain
+\begin{equation}\label{eq:gain}
+  \Gain = \frac{G_L^2}{H_L+\lambda} + \frac{G_R^2}{H_R+\lambda} - \frac{G_S^2}{H_S+\lambda},
+\end{equation}
+and the split is made only if $\Gain > \gamma$ and $H_L, H_R \ge w$, where $\lambda$ (default 1), $\gamma$ (default 0) and $w$ (\code{min\_child\_weight}, default 1) are XGBoost's regularisation parameters. \citet{chen2016xgboost} write the loss reduction as half of \eqref{eq:gain} minus $\gamma$; \eqref{eq:gain} is what the software computes, compares with $\gamma$ and reports, and we use it throughout. The \code{gain} importance, XGBoost's default for \code{feature\_importances\_}, is the \emph{mean} of \eqref{eq:gain} over the splits that use a feature; \code{total\_gain} is the sum.
+
+\begin{proposition}[the first-tree gain is Pearson's chi-square]\label{prop:chi2}
+In the first tree, with $\lambda = 0$, the gain of splitting a node $S$ with $0 < k_S < n_S$ into non-empty children is
+\begin{equation}\label{eq:chi2}
+  \Gain = \frac{\phat_S(1-\phat_S)}{b(1-b)}\,X_S^2,\qquad X_S^2 = \frac{n_S\,(k_L n_R - k_R n_L)^2}{n_L\,n_R\,k_S\,(n_S-k_S)},
+\end{equation}
+where $\phat_S = k_S/n_S$ and $X_S^2$ is Pearson's chi-square statistic (without continuity correction) for the $2\times 2$ table of child by class. At the root with $b = \phat$ the factor is 1 and $\Gain = X^2$.
+\end{proposition}
+
+\begin{proof}
+With constant Hessian $h$, $H_T = h\,n_T$. For reals $a, c$ and $x, y > 0$, $a^2/x + c^2/y - (a+c)^2/(x+y) = (ay-cx)^2/(xy(x+y))$. Taking $a = G_L$, $c = G_R$, $x = hn_L$, $y = hn_R$ gives $\Gain = (G_L n_R - G_R n_L)^2/(h\,n_L n_R n_S)$. Since $G_T = b\,n_T - k_T$, the terms in $b$ cancel and $G_L n_R - G_R n_L = k_R n_L - k_L n_R$. Multiply and divide by $\phat_S(1-\phat_S) = k_S(n_S-k_S)/n_S^2$.
+\end{proof}
+
+\Cref{prop:chi2} is an instance of a classical fact: with a constant Hessian, the Newton gain at the null fit is Rao's score statistic for adding the split indicator to a logistic model, and for a binary indicator that statistic is Pearson's $X^2$ \citep{rao1948large,agresti2013categorical}. The same connection underlies model-based recursive partitioning \citep{zeileis2008model}. Its use here is that it turns the first-tree gain into a test statistic whose null law can be studied as the minority count varies.
+
+\paragraph{The intercept, by XGBoost version.} The base score depends on the version (\cref{tab:intercepts}; we measured each value). XGBoost~1.x uses $b = 1/2$. Versions 2.0--2.1 estimate it by one Newton step from $F = 0$, $F^{(0)} = 4\phat - 2$, so $b = \sigma(4\phat-2) \to \sigma(-2) \approx 0.119$ as $\phat \to 0$. Versions 3.0 and later use the prevalence, $b = \phat$, which makes the root gradient sum zero. We call $b = \phat$ the \emph{prevalence intercept} throughout. When $b \ne \phat$, every split pays a toll.
+
+\begin{table}[t]
+\centering\small
+\caption{XGBoost's default base score $b$ after fitting, by version and prevalence (identical for \code{exact} and \code{hist}), and the chi-square a first-tree split needs before its gain is positive (\cref{prop:toll}, approximation \eqref{eq:approx}, valid when both children have $H_c\gg\lambda$ and are not enriched in positives; $\lambda = 1$).}\label{tab:intercepts}
+\begin{tabular}{lcccccc}
+\toprule
+ & \multicolumn{3}{c}{default $b$} & \multicolumn{3}{c}{$X^2$ needed for $\Gain > 0$} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+XGBoost & $\phat = 0.001$ & $0.01$ & $0.1$ & $\phat = 0.001$ & $0.01$ & $0.1$\\
+\midrule
+1.7.6 & 0.5 & 0.5 & 0.5 & 997.0 & 97.0 & 7.11 \\
+2.1.3 & 0.1196 & 0.1235 & 0.1680 & 133.8 & 12.0 & 0.37 \\
+3.1.3 & 0.001 & 0.01 & 0.1 & 0 & 0 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{proposition}[the intercept toll]\label{prop:toll}
+Let $b \ne \phat$ in the first tree. Write $r = G/H = (b-\phat)/(b(1-b))$ and, for a child $c$, $D_c = G_c - rH_c = -(k_c - \phat\,n_c)$. Then, exactly,
+\begin{equation}\label{eq:toll}
+  \Gain = \sum_{c\in\{L,R\}} \frac{(D_c - r\lambda)^2}{H_c + \lambda} - \lambda r^2\,\frac{H + 2\lambda}{H+\lambda}.
+\end{equation}
+If both children satisfy $H_c \gg \lambda$ and $|\phat_c - \phat| \ll |b - \phat|$, then
+\begin{equation}\label{eq:approx}
+  \Gain \approx \frac{\phat(1-\phat)}{b(1-b)}\,X^2 - \lambda r^2,
+\end{equation}
+with the explicit remainder bound \eqref{eq:remainder} of \cref{app:proofs}, so under \eqref{eq:approx} a split has positive gain only if
+\begin{equation}\label{eq:threshold}
+  X^2 > \lambda\,\frac{(b-\phat)^2}{b(1-b)\,\phat(1-\phat)}
+  \;\approx\; \begin{cases} e^{-2}\lambda/\phat & \text{XGBoost 2.0--2.1},\\ \lambda/\phat & \text{XGBoost 1.x},\end{cases}\qquad \phat \to 0.
+\end{equation}
+\end{proposition}
+
+So with the 2.x default at $\phat = 0.001$ a root split whose children are not enriched in positives needs $X^2 > 134$, far more than a moderately informative feature produces, and the first tree is often a single leaf. The splits that do pass are the exceptions to \eqref{eq:approx}: small children strongly enriched in positives. Since $H_c \ge w$ allows children of about $w/(b(1-b)) \approx 10$ samples under the 2.x default (\cref{prop:mcw}), any continuous column, informative or not, can make such a split. \emph{Heuristic:} these splits memorise individual positives before the signal is learned, and the effect lasts until later rounds have moved the score toward $\logit\phat$, which at learning rate 0.1 takes tens of rounds. We test the exact identity \eqref{eq:toll} run by run and the heuristic in \cref{app:rounds}. Under XGBoost~3.x the toll is zero by default.
+
+\subsection{The small-prevalence limit}\label{sec:limit}
+
+Fix a feature and let $F_0$ and $F_1$ be its distribution functions among negatives and positives. The \emph{placement value} of a positive with feature value $x$ is $V = F_0(x)$, the fraction of negatives below it; its distribution function $G(u) = \P(V \le u)$ describes how the positives sit among the negatives \citep{hanley1982meaning,pepe2004placement}. A feature is irrelevant if $G(u) = u$. (Below, $G$ without a subscript always denotes this placement law; gradient sums always carry a subscript.) In the Gaussian model $V = \Phi(Z)$ with $Z \sim N(\delta,1)$, so $G(u) = \Phi(\Phi^{-1}(u) - \delta)$.
+
+The root split takes the best threshold of every feature and then the best feature. Index thresholds by the fraction $u = n_L/n$ of samples sent left. With the prevalence intercept the left child's gradient sum is $\nmin u - k_L$, $H_L = \nmin u(1-\phat)$ and $H_R = \nmin(1-u)(1-\phat)$, so the gain as a function of $u$ is
+\begin{equation}\label{eq:process}
+  \Gain(u) = \bigl(k_L(u) - \nmin u\bigr)^2\left[\frac{1}{\nmin u(1-\phat)+\lambda} + \frac{1}{\nmin(1-u)(1-\phat)+\lambda}\right],\qquad u \in [u_w, 1-u_w],
+\end{equation}
+with $u_w = w/(\nmin(1-\phat))$. Apart from the counting process $k_L(u)$, everything is a function of $\nmin$, $\phat$, $\lambda$ and $w$.
+
+\begin{theorem}[small-prevalence limit]\label{thm:limit}
+Condition on the labels: given them, each feature's $\nmin$ positive values are i.i.d.\ $F_1$ and its $n-\nmin$ negative values i.i.d.\ $F_0$, independently, and features are independent of one another. Let each $F_0$ be continuous and each placement value $V = F_0(X)$, $X\sim F_1$, atomless (equivalently, $F_1$ has no atoms and gives no mass to any interval on which $F_0$ is constant, including the interval below the support of $F_0$). Use the prevalence intercept, exact greedy search, and $w > 0$ with $\nmin > 2w$. Fix $\nmin$, $\lambda$, $w$ and the features' laws, and let $n \to \infty$, so $\phat \to 0$. Then the gain processes \eqref{eq:process} of the features converge in distribution, jointly and independently across features, to
+\begin{equation}\label{eq:limit}
+  \Gamma(u) = \bigl(N(u) - \nmin u\bigr)^2\left[\frac{1}{\nmin u+\lambda} + \frac{1}{\nmin(1-u)+\lambda}\right],\qquad u\in[w/\nmin,\,1-w/\nmin],
+\end{equation}
+where $N(u) = \#\{i \le \nmin : V_i \le u\}$ for i.i.d.\ placements $V_1,\dots,V_{\nmin}$ with law $G$. The same holds for shadows, which are row-permutations of candidate columns and so are not conditionally independent of their sources: a shadow's limit process is that of a null feature, independent of all the others (\cref{lem:shadow} in \cref{app:proof-limit}). The convergence is in the Skorokhod $J_1$ topology for the counting processes and uniform for the gains after a time change that tends to the identity. The suprema $M_j = \sup_u \Gamma_j(u)$ converge jointly, and their law depends only on $\nmin$, $\lambda$, $w$ and the placement laws $G_j$.
+\end{theorem}
+
+The proof (\cref{app:proof-limit}) couples all sample sizes on one probability space: a positive's rank fraction among all $n$ values converges to $V_i$ because the negatives, which are almost all of the sample, have an empirical distribution function converging uniformly to $F_0$. The limit \eqref{eq:limit} for a null feature is the maximally selected chi-square statistic of $\nmin$ uniform points \citep{miller1982maximally,lausen1992maximally}; what is specific here is that the sample size entering it is $\nmin$, not $n$. Three remarks bound its use. (i) The law of $M$ has atoms: with probability 1--7\% in our simulations the null supremum sits at the boundary $u = w/\nmin$, so features can tie exactly; XGBoost breaks ties by column order, and our first-split experiment randomises it. (ii) The theorem gives no rate; numerically, at $\nmin = 50$ the 95th percentile of the null supremum is 7.3, 8.0, 8.8 and 8.9 at $n = 100$, 200, 500 and $10^5$, against 9.1 in the limit, so the limit is accurate once $\phat \lesssim 0.1$. (iii) Without regularisation ($\lambda = w = 0$) the limit is the supremum of a squared standardised uniform empirical process, which is finite almost surely but has infinite mean and diverges as $\nmin \to \infty$ \citep{jaeschke1979asymptotic,donoho2004higher}; the truncation at $w/\nmin$ and the penalty $\lambda$ keep it small.
+
+\subsection{The scaling variable \texorpdfstring{$s = \nmin\delta^2$}{s}}\label{sec:scaling}
+
+\begin{proposition}[signal at a fixed threshold]\label{prop:fixed}
+In the limit of \cref{thm:limit}, $N(u) \sim \Bin(\nmin, G(u))$, and the standardised deviation $(N(u)-\nmin u)^2/(\nmin u(1-u))$, which is $\Gamma(u)$ for $\lambda = 0$, has mean $G(u)(1-G(u))/(u(1-u)) + \nu(u)$ with non-centrality $\nu(u) = \nmin (G(u)-u)^2/(u(1-u))$. If $\nmin \to \infty$ along a sequence of placement laws $G_{\nmin}$ with $\sqrt{\nmin}\,(G_{\nmin}(u) - u) \to -c$ for a fixed $u$, the standardised count $(N(u) - \nmin u)/\sqrt{\nmin u(1-u)}$ converges in law to $\mathcal N(-c/\sqrt{u(1-u)},\,1)$. In the Gaussian model,
+\begin{equation}\label{eq:twopi}
+  \lim_{\delta\to 0}\, \frac{\max_u \nu(u)}{\nmin\delta^2} = \frac{2}{\pi},
+\end{equation}
+attained at the median split $u \to 1/2$.
+\end{proposition}
+
+The proof is in \cref{app:proof-fixed}. The ratio $\varphi(x)^2/(\Phi(x)(1-\Phi(x)))$ that appears is the efficiency of dichotomising a normal sample at $x$ \citep{cox1957note}. At finite $\delta$ the best threshold moves into the positives' tail and the maximum exceeds $(2/\pi)\nmin\delta^2$, by a factor of 1.03, 1.09 and 1.47 at $\delta = 0.3$, 0.5 and 1. So $(2/\pi)s$ is the small-effect value, not an upper bound.
+
+\begin{theorem}[the scaling variable, on a fixed window]\label{thm:scaling}
+In the Gaussian model, let $\nmin \to \infty$ and $\delta \to 0$ with $\nmin\delta^2 \to s \in [0,\infty)$ (take $\delta \ge 0$), after the limit $n\to\infty$ of \cref{thm:limit}. Fix $\lambda \ge 0$, $w > 0$ and a window $[\varepsilon, 1-\varepsilon]$ with $0 < \varepsilon < 1/2$. On that window, the limit gain processes \eqref{eq:limit} of independent features converge jointly and uniformly in distribution to independent copies of
+\begin{equation}\label{eq:bridge}
+  \Gamma^{(s)}(u) = \frac{\bigl(\mathbb B(u) - \sqrt s\,\psi(u)\bigr)^2}{u(1-u)},\qquad \psi(u) = \varphi\bigl(\Phi^{-1}(u)\bigr),
+\end{equation}
+where $\mathbb B$ is a Brownian bridge and $s$ is the feature's own scaling variable ($s = 0$ for a null feature). Consequently, if thresholds are restricted to the window, the probability that an informative feature's best split beats the best splits of $K$ null features converges to
+\[
+  \omega_\varepsilon(s,K) = \P\Bigl(\sup_{[\varepsilon,1-\varepsilon]}\Gamma^{(s)} > \max_{k\le K}\,\sup_{[\varepsilon,1-\varepsilon]}\Gamma^{(0)}_k\Bigr),
+\]
+which depends on $s$, $K$ and $\varepsilon$, and not on $\lambda$, $w$ or how $\nmin$ and $\delta$ combine to give $s$. It is non-decreasing in $s$, and $\omega_\varepsilon(0,K) = 1/(K+1)$.
+\end{theorem}
+
+The proof (\cref{app:proof-scaling}) splits $N(u) - \nmin u$ into a uniform empirical process, which converges to $\mathbb B$, and a drift that converges to $-\sqrt s\,\psi(u)$; monotonicity in $s$ is Anderson's inequality \citep{anderson1955integral}. The limit \eqref{eq:bridge} is the classical maximally selected statistic under contiguous location alternatives \citep{miller1982maximally,lausen1992maximally,hothorn2008generalized}; what it adds here is the identification of $s = \nmin\delta^2$ as the quantity that sets the power of the shadow rule at the root. In the windowed limit, halving $\delta$ costs as much as dividing $\nmin$ by four. Only the uniform convergence of the drift is used, so the conclusion holds for any sequence of placement laws with $\sqrt{\nmin}\,(u - G_{\nmin}(u)) \to h(u)$ uniformly on the window, with $\sqrt s\,\psi$ replaced by $h$ ($h$ is then continuous, as a uniform limit of continuous functions). For a location family with standardised density $f$, distribution function $F$ and shift $\delta$, where $F$ is strictly increasing and $f$ continuous on $[F^{-1}(\varepsilon), F^{-1}(1-\varepsilon)]$, $h = \sqrt s\, J_f$ with the density-quantile function $J_f(u) = f(F^{-1}(u))$: within a family $s$ still governs, but two families with the same $s$ differ through the shape of $J_f$.
+
+XGBoost does not use a fixed window: it searches all thresholds with $H_L, H_R \ge w$, the window $[w/\nmin, 1-w/\nmin]$ of \cref{thm:limit}, which widens as $\nmin$ grows. Near its edges the drift $\sqrt s\,\psi(u)/\sqrt{u(1-u)}$ vanishes while the null supremum keeps growing.
+
+\begin{conjecture}[slow drift on the full window]\label{conj:drift}
+Let $M^{(0)}_{\nmin}$ be the null supremum of \eqref{eq:limit} on the full window $[w/\nmin, 1-w/\nmin]$, with $\lambda, w > 0$ fixed, and let $\omega(s,K;\nmin)$ be the root win probability of an informative Gaussian feature with $\nmin\delta^2 = s$ against $K$ null features on that window. Then (a) $M^{(0)}_{\nmin}/(2\log\log\nmin) \to 1$ in probability as $\nmin\to\infty$; (b) at fixed $s$ and $K$, $\omega(s,K;\nmin) \to 1/(K+1)$; (c) in finite range, $\omega(12.5, 9;\nmin)$ is non-increasing in $\nmin$ and falls below 0.75 by $\nmin = 10^5$.
+\end{conjecture}
+
+The unregularised analogue is classical: the squared supremum of the standardised uniform empirical process over $[a_m, 1-a_m]$, with $a_m \to 0$ and $m a_m \to \infty$, is $2\log\log(1/a_m)(1 + o_P(1))$ \citep{jaeschke1979asymptotic,csorgo1993weighted}. What is unproved is the regularised boundary region, where $\nmin a_{\nmin} = w$ stays bounded and the classical result does not apply. Matching the centre drift $2s/\pi$ against the null level $2\log\log\nmin$ suggests, as a heuristic, that the win probability tends to $1/(K+1)$ for $s = c\log\log\nmin$ with $c < \pi$ and to 1 with $c > \pi$, so detection at fixed power needs $s$ to grow like $\log\log\nmin$. Over the range we can compute, the median null supremum is about $1.34\times 2\log\log\nmin$, so part (a) is an asymptotic statement that the evidence does not yet reach. A numerical evaluation of \eqref{eq:limit} with $\lambda = w = 1$ and $K = 9$ (\cref{app:conj1}) gives a root win probability at $s = 12.5$ of 0.85, 0.82, 0.79, 0.80 and 0.76 at $\nmin = 50$, 200, 1000, 5000 and 20{,}000 (standard error about 0.01); on the window $[0.1,0.9]$ it is flat at $0.86 \pm 0.01$. So over the range that matters in practice $s$ fixes the root win probability to within about 0.1, but $s$ is not sufficient asymptotically for the search XGBoost performs.
+
+\subsection{The shadow comparison: level, number of shadows and rounds}\label{sec:level}
+
+The results so far concern one feature's gain at the root. The shadow rule compares a candidate with $K$ shadows. The level of that comparison holds for any sample size and any number of trees, under four conditions on the data and the learner:
+\begin{enumerate}[label=(A\arabic*),start=0]
+  \item \emph{Exchangeable rows.} The rows are i.i.d.\ (or the rows of the column under test are exchangeable given $Y$ and the other columns).
+  \item \emph{Rank dependence.} The importances are a function of $Y$, the rank vectors of the columns and randomness independent of the data. Tree learners with training-set importances satisfy this with exact search. With \code{hist} we checked it numerically (importances unchanged under $x \mapsto x^3$ and $x\mapsto e^{3x}$) but have not proved it. Replacing every column by its ranks before fitting makes (A1) hold for any learner.
+  \item \emph{Column symmetry.} For every data set and column permutation $P$, the importances of the permuted data have the law of the permuted importances. Ties broken by column order violate this; shuffling the column order before each fit restores it.
+  \item \emph{Continuity.} No column has ties.
+\end{enumerate}
+
+\begin{proposition}[level of the shadow rule]\label{prop:level}
+Assume (A0)--(A3). Let candidate $j$ be null in the strong sense that $X_j$ is independent of $(Y, X_{C\setminus j})$, and let each of the $K$ shadows be an independent, uniformly random row-permutation of some candidate column, or a column of i.i.d.\ continuous noise. Then
+\[
+  \P\Bigl(I_j > \max_{k\le K} I_{s_k}\Bigr) \le \frac{1}{K+1},
+\]
+with equality when importances tie with probability zero, for every $n$, $\nmin$, $\phat$ and number of trees. If all $K$ shadows are permutations of $X_j$ itself (\emph{per-feature shadows}), the same bound holds under (A0) and (A2) alone, for columns of any type.
+\end{proposition}
+
+\begin{proof}
+By (A0), (A3) and the strong null, the rank vector of $X_j$ is uniform over permutations and independent of $Y$ and the other candidates; by (A1) the importances depend on the columns only through such rank vectors. (A3) is needed only for $X_j$ and the shadows' source columns. A shadow's rank vector is the rank vector of its source composed with an independent uniform permutation, so it is again uniform and independent of everything else, as is the rank vector of an i.i.d.\ continuous noise column. So the rank vectors of $X_j$ and of the $K$ shadows are i.i.d.\ and independent of $Y$ and the remaining columns, and by (A2) the $K+1$ importances are exchangeable; each is the strict maximum with probability at most $1/(K+1)$. For per-feature shadows, (A0) and the strong null give $X_j = \tau x$ for its multiset of values $x$ and a uniform permutation $\tau$ independent of $(Y, X_{C\setminus j})$; the shadows are $\tau_k x$ with $\tau_k = \varrho_k\tau$ for the shadows' independent uniform permutations $\varrho_k$, and $\tau, \tau_1, \dots, \tau_K$ are i.i.d.\ uniform. The $K+1$ columns are therefore exchangeable given the rest, and (A2) gives exchangeable importances without (A1) or (A3); ties, as with discrete columns, only make the inequality strict. Shadows of other candidates do no harm, being independent of the $\varrho_k$.
+\end{proof}
+
+This is the Monte Carlo test argument \citep{barnard1963discussion,hope1968simplified,besag1989generalized}, applied to random probes as in \citet{stoppiglia2003ranking} and \citet{wu2007controlling}: the max-shadow rule is a test of level $1/(K+1)$ for each strong-null candidate, whatever the imbalance. Imbalance changes only the rule's \emph{power}, and, through ties at zero importance, how far below the bound the level sits. Two limitations matter in practice. A candidate that is independent of $Y$ but correlated with a relevant candidate is not covered. And with Boruta's shadows (one permutation of each candidate), discrete columns break exchangeability: in our experiment a binary null among continuous candidates is kept more often than $1/(K+1)$ under mean gain and less often under total gain (\cref{sec:exp-level}), as with the cardinality bias of impurity importance \citep{strobl2007bias}. Per-feature shadows restore the level for any column type (\cref{sec:exp-level}).
+
+\begin{corollary}[number of shadows, at the root]\label{cor:shadows}
+In the limit of \cref{thm:limit}, let $M_j$ be an informative candidate's best root gain, $M_0$ a null feature's, and $Q(x) = \P(M_0 < x)$. Counting exact ties as losses, the probability that the root uses candidate $j$ rather than any of $K$ shadows is $\E[Q(M_j)^K]$, which is strictly decreasing in $K$ whenever $\P(0 < Q(M_j) < 1) > 0$.
+\end{corollary}
+
+\begin{proof}
+By \cref{lem:shadow}, the $K$ shadow suprema converge to i.i.d.\ copies of $M_0$, independent of $M_j$. Given $M_j$ the candidate wins if every shadow is below it, which has probability $Q(M_j)^K$; take expectations.
+\end{proof}
+
+Adding shadows lowers the level $1/(K+1)$ and raises the bar for real features. Boruta uses one shadow per candidate, so $K$ grows with the width of the table. At $\nmin = 50$, $\delta = 0.5$ ($s = 12.5$) the root win probability falls from 0.90 with $K = 5$ to 0.47 with $K = 200$. \Cref{cor:shadows} is a statement about the root split; whether full ensembles behave the same way is part of \cref{conj:ensemble}.
+
+\begin{proposition}[repeated rounds]\label{prop:rounds}
+Run $R$ rounds on fixed data $D$, each with fresh shadows, a fresh column order and fresh learner randomness, without removing features between rounds, and let $\theta_j(D)$ be a null candidate's per-round hit probability given $D$. Its hit count is $T_j \mid D \sim \Bin(R, \theta_j(D))$ with $\E\,\theta_j(D) \le 1/(K+1)$ under the conditions of \cref{prop:level}. Let the candidate be rejected when $T_j \le r_R$, the largest $r$ with $\P(\Bin(R,\tfrac12) \le r) < \alpha/d$ (one-sided, Bonferroni over $d$ candidates), and $r_R = -1$ if there is none, in which case no candidate is rejected. Then the probability that it is kept is
+\begin{equation}\label{eq:rounds}
+  \P(\text{keep}) = \E\bigl[\P(\Bin(R,\theta_j(D)) > r_R)\bigr] \le \frac{R}{(K+1)(r_R+1)}\quad (r_R \ge 0),
+\end{equation}
+and, as $R\to\infty$ with $\alpha$, $d$ and $K$ fixed, $\limsup_R \P(\text{keep}) \le \P(\theta_j(D) \ge \tfrac12) \le \min\bigl\{2/(K+1),\ 4\operatorname{Var}\theta_j(D) + 4/(K+1)^2\bigr\}$.
+\end{proposition}
+
+The proof is in \cref{app:proof-rounds}. Three consequences shape the guidance. First, the keep rate of a null depends on $R$, $K$ and $d$: $r_R$ falls as $d$ grows, so with $K = 10$ and $R = 20$ a constant hit rate of $1/11$ gives a keep rate of 0.10 at $d = 10$ but 0.27 at $d = 200$ (\cref{tab:rounds-grid}). Second, the Markov bound \eqref{eq:rounds} is not monotone in $R$: it jumps whenever $r_R$ does not increase, and so does the keep rate under a constant hit rate (0.074 at $R = 18$ against 0.102 at $R = 20$ for $d = K = 10$). Third, the limit is at most $2/(K+1)$ whatever the data, and smaller when $\theta_j(D)$ varies little between data sets ($\operatorname{Var}\theta_j < (K-1)/(2(K+1)^2)$, 0.037 at $K = 10$); \cref{prop:level} does not control that variance.
+
+\subsection{A rank test on the same data}\label{sec:rank}
+
+The gain process \eqref{eq:limit} is built from the counting process $N$. So is the Mann--Whitney statistic. A feature's single-feature ROC area is $\AUC = \E V = \int_0^1 (1 - G(u))\,du$, the probability that a positive exceeds a negative. Define the \emph{rank scaling variable}
+\begin{equation}\label{eq:sauc}
+  \sauc = 4\pi\,\nmin\,(\AUC - \tfrac12)^2 .
+\end{equation}
+In the Gaussian model $\AUC = \Phi(\delta/\sqrt2)$, so $\sauc = s\,(1 + O(\delta^2))$; at $\delta = 0.5$, $\sauc = 0.96\,s$.
+
+\begin{proposition}[the Mann--Whitney test in the same limit]\label{prop:mw}
+In the setting of \cref{thm:limit}, the normalised Mann--Whitney statistic $W_n = U/(\nmin(n-\nmin))$ of a feature converges almost surely, on the coupling of \cref{app:proof-limit}, to
+\begin{equation}\label{eq:mw}
+  W = \frac{1}{\nmin}\sum_{i=1}^{\nmin} V_i = 1 - \frac{1}{\nmin}\int_0^1 N(u)\,du .
+\end{equation}
+If moreover $\nmin\to\infty$ along placement laws $G_{\nmin} \to \mathrm{id}$ uniformly with $\sauc \to s_*$ (the condition on $G_{\nmin}$ is needed: $V \equiv \tfrac12$ has $\sauc = 0$ but a degenerate $W$), then $\sqrt{12\nmin}\,(W - \tfrac12) \Rightarrow \mathcal N(\pm\sqrt{3 s_*/\pi},\,1)$, with the sign of $\AUC - \tfrac12$, and the two-sided test at level $\alpha$, with $z_{\alpha/2}$ the upper $\alpha/2$ quantile of the standard normal, has asymptotic power
+\begin{equation}\label{eq:mwpower}
+  \Phi\bigl(\sqrt{3s_*/\pi} - z_{\alpha/2}\bigr) + \Phi\bigl(-\sqrt{3s_*/\pi} - z_{\alpha/2}\bigr),
+\end{equation}
+for every pair of continuous class-conditional distributions.
+\end{proposition}
+
+So the rank test's power depends on the data only through $\sauc$, whatever the distribution of the feature; in the Gaussian model this is the power at $s$ (proof in \cref{app:proof-mw}). At finite $n$ the exact null variance $\nmin(n-\nmin)(n+1)/12$ replaces $s_*$ by about $s_*(1-\phat)$; a two-sample test's information is $\nmin(n-\nmin)/n$, which is $\nmin$ when positives are rare, so the rank test too is governed by the minority count. Equation \eqref{eq:mw} shows how the two procedures use the same information: the split criterion takes the \emph{largest} standardised deviation of $N(u)$ from $\nmin u$ over thresholds, the rank test the \emph{average} deviation, with a known null law.
+
+\begin{corollary}[efficiency of one split relative to the rank test]\label{cor:efficiency}
+Let a feature follow a location family with bounded standardised density $f$, shift $\delta \to 0$ and $\nmin\delta^2 \to s$. A pre-specified threshold $u$, with $F^{-1}(u)$ uniquely defined and $f$ continuous there, has non-centrality $s\,J_f(u)^2/(u(1-u))$ (\cref{prop:fixed}), and the rank test has non-centrality $12 s\,(\int f^2)^2$ (\cref{prop:mw}, since $\AUC - \tfrac12 = \delta\int f^2 + o(\delta)$). The best fixed threshold, chosen knowing $f$, therefore has asymptotic relative efficiency
+\begin{equation}\label{eq:efficiency}
+  \mathrm{ARE}(f) = \frac{\sup_u J_f(u)^2/(u(1-u))}{12\,\bigl(\int f^2\bigr)^2}
+\end{equation}
+with respect to the rank test: $2/3$ for the normal, $3/4$ for the logistic, $0.85$ for $t_3$ and $4/3$ for the Laplace distribution (all at the median), and $4.8$ for the log-normal with $\sigma = 1$, at an interior maximiser $u \approx 0.01$ (the median split has $0.40$).
+\end{corollary}
+
+For the normal, $2/3$ is the Pitman efficiency of the median test relative to the Wilcoxon test \citep{mood1954asymptotic,hodges1956efficiency}. For a Gaussian feature, any test based on one fixed split needs 1.5 times as many positives as the rank test. For heavy-tailed features the gap narrows, and for strongly skewed ones a well-placed split beats the rank test. The log-normal value needs $\nmin u^* \gg 1$, so it is relevant only for $\nmin$ well above 100 (at $\nmin = 50$ about half a positive falls below the optimal threshold), and the split lies inside XGBoost's window only if $\nmin > w/u^* \approx 96w$; a location shift is also an unusual alternative for a skewed feature. The corollary concerns a fixed threshold. The shadow rule instead compares the best of many thresholds for the candidate with the best of many for each of $K$ shadows, and we have no closed form for the cost of that search. A numerical evaluation of the limits in the Gaussian model ($K = 9$, level $0.1$, $\nmin = 50$) gives the power of the three procedures:
+
+\begin{center}\small
+\begin{tabular}{lccccc}
+\toprule
+$s = \nmin\delta^2$ & 2 & 5 & 10 & 15 & 25\\
+\midrule
+max-shadow rule, best root split (limit \eqref{eq:limit}) & 0.27 & 0.51 & 0.77 & 0.90 & 0.98\\
+fixed median split (non-centrality $2s/\pi$) & 0.31 & 0.56 & 0.81 & 0.93 & 0.99\\
+Mann--Whitney (\cref{eq:mwpower}) & 0.40 & 0.71 & 0.93 & 0.98 & 1.00\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+To reach power 0.9 the rank test needs $s \approx 9.0$, the median split $s \approx 13.5$ and the max-shadow rule on the root split $s \approx 15$; the ordering is the same at $\nmin = 25$ and 250. A rank test of each feature on its own cannot see a feature that acts only through an interaction or only through its spread, which a tree can; \cref{sec:robustness} measures both cases.
+
+\subsection{The full ensemble}\label{sec:ensemble}
+
+After the first tree the scores differ between samples and \cref{prop:chi2} no longer holds. We prove only an accounting identity for the whole ensemble (\cref{prop:accounting} in \cref{app:accounting}), which ties the total gain recorded by all features to the training loss removed. The behaviour that matters for selection is a conjecture.
+
+\begin{conjecture}[the full ensemble]\label{conj:ensemble}
+Consider a boosted ensemble with the prevalence intercept, mean-gain importance (exact or \code{hist} search), and the one-shot max-shadow rule with ties counted as losses, in the Gaussian model. (a) For every $n$ with $\phat \le 0.1$, the false negative rate of an informative candidate is at least the root-split failure probability $1 - \E[Q(M_j)^K]$ of \cref{cor:shadows}, evaluated at the same $(\nmin, \delta, K, \lambda, w)$. (b) At fixed $\nmin$, $\delta$ and $K$, the false negative rate does not decrease as $\phat$ decreases (that is, as $n = \nmin/\phat$ grows).
+\end{conjecture}
+
+Part (a) says the root-split theory is a lower bound on what the ensemble loses; part (b) says the residual dependence on the prevalence, if any, goes in one direction. \Cref{sec:experiments} tests both cell by cell, and estimates the size of the residual effect.

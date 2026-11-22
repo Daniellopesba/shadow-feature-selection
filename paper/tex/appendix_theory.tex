@@ -1,0 +1,90 @@
+\section{Further theory}\label{app:theory}
+
+\subsection{The null distribution at a fixed threshold}\label{app:nullmean}
+
+Call a feature null if it is continuous and independent of $Y$. Given the labels, the ranks of the $\nmin$ positives among the $n$ values of a null feature are a uniformly random subset, so a split that sends a fixed number $n_L$ of samples left has $k_L\sim\mathrm{Hypergeometric}(n,\nmin,n_L)$.
+
+\begin{proposition}[exact null mean]\label{prop:nullmean}
+At the root, for a null feature, a fixed (data-independent) $n_L$, the prevalence intercept and $\lambda = 0$, $\E[\Gain] = \E[X^2] = n/(n-1)$ for every $n_L$ and every $\nmin$.
+\end{proposition}
+
+\begin{proof}
+With $b = \phat$, $G = 0$, so $G_R = -G_L$ with $G_L = n_L\phat - k_L$, and $\Gain = G_L^2(1/H_L + 1/H_R) = G_L^2\,n/(\phat(1-\phat)n_Ln_R)$. Here $\E G_L = 0$ and $\operatorname{Var}k_L = n_L\phat(1-\phat)(n-n_L)/(n-1)$; substituting gives $n/(n-1)$.
+\end{proof}
+
+Imbalance therefore does not change the expected gain of a single uninformative split; it changes the \emph{shape} of its distribution. $X^2$ is approximately $\chi^2_1$ only when both children are expected to hold many positives. For a child of size $m\ll n$ holding $j$ positives, $X^2\approx(j - m\phat)^2/(m\phat)$: with $m\phat = 0.1$ and $j = 2$ it is 36, against a 99.9th percentile of 10.8 for $\chi^2_1$.
+
+\begin{proposition}[\code{min\_child\_weight} counts expected positives]\label{prop:mcw}
+In the first tree, $H_L\ge w$ means $n_L\ge w/(b(1-b))$. Under the null, a child of that size holds on average $n_L\phat\ge w\phat/(b(1-b))$ positives. With the prevalence intercept this is $w/(1-\phat)\approx w$; with the XGBoost 2.x default at $\phat = 0.001$ ($b\approx 0.12$) it is about $0.0095\,w$, a child of about 10 samples.
+\end{proposition}
+
+So XGBoost's default $w = 1$ rules out, under the prevalence intercept, the splits whose children are expected to hold fewer than about one positive, which is where the heavy tail lives; under the 2.x default it protects almost nothing. With \code{hist}, children are also unions of bins, which in practice bounds them below by roughly $n/\code{max\_bin}$ samples; this is a description of the binning, not part of the proposition.
+
+\subsection{Histogram search}\label{app:hist}
+
+\begin{corollary}[histogram search]\label{cor:hist}
+With \code{tree\_method="hist"} and a fixed \code{max\_bin} $= B$, suppose (H1) the cut points have empirical-CDF positions converging to $j/B$ almost surely, and (H2) no $j/B$ equals $w/\nmin$ or $1-w/\nmin$. Then the conclusion of \cref{thm:limit} holds with $u$ restricted to $\{1/B,\dots,(B-1)/B\}\cap[w/\nmin, 1-w/\nmin]$.
+\end{corollary}
+
+\begin{proof}
+Under (H1) the cut $c^n_j$ has $F_n(c^n_j)\to j/B$, where $F_n$ is the empirical distribution function of all $n$ values, so $k_L$ at that cut is $N_n(F_n(c^n_j)) = N(\ell_n(F_n(c^n_j)))\to N(j/B)$, because $N$ is almost surely continuous at $j/B$. The bracket converges as before. Under (H2) each cut is eventually admissible if and only if $j/B\in(w/\nmin, 1-w/\nmin)$, so the maximum over cuts converges to the maximum of $\Gamma$ over the grid.
+\end{proof}
+
+(H1) is an assumption about XGBoost's quantile sketch. In the first tree the Hessian is constant, so the sketch is unweighted, but we have not verified (H1) analytically. Every prediction for \code{hist} in this paper is therefore conditional on it.
+
+\subsection{Evidence for \texorpdfstring{\cref{conj:drift}}{Conjecture 1}}\label{app:conj1}
+
+Numerical evaluation of the limit \eqref{eq:limit} with $\lambda = w = 1$ and $K = 9$ null features (1{,}500 signal and 6{,}000 null draws per column; Monte Carlo standard error about 0.01):
+
+\begin{center}\small
+\begin{tabular}{lcccccc}
+\toprule
+$\nmin$ & 10 & 50 & 200 & 1{,}000 & 5{,}000 & 20{,}000\\
+\midrule
+median null supremum & 2.40 & 3.63 & 4.54 & 5.24 & 5.74 & 6.14\\
+$\P$(informative wins), $s = 12.5$, full window & 0.87 & 0.85 & 0.82 & 0.79 & 0.80 & 0.76\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The median grows roughly like $2\log\log\nmin$ and the win probability decreases slowly; on the fixed window $[0.1, 0.9]$ the win probability is flat at $0.86\pm0.01$ for $\nmin$ from 50 to 5{,}000. The library computes these probabilities by Monte Carlo on \eqref{eq:limit} (\code{theory.detection\_probability}).
+
+\subsection{Gain accounting for the full ensemble}\label{app:accounting}
+
+\begin{proposition}[gain accounting]\label{prop:accounting}
+Consider one tree with $\gamma = 0$ and leaves $\ell$ with gradient and Hessian sums $(G_\ell, H_\ell)$, and let $(G,H)$ be the sums over all samples. The reported gains of the tree's splits add up to
+\begin{equation}\label{eq:telescope}
+  \sum_{\text{splits}}\Gain = \sum_\ell\frac{G_\ell^2}{H_\ell+\lambda} - \frac{G^2}{H+\lambda}.
+\end{equation}
+For this tree, given its structure, with leaf values $-\eta G_\ell/(H_\ell+\lambda)$, the decrease of the second-order (Newton) approximation of the training loss is
+\begin{equation}\label{eq:newton}
+  \Delta\tilde L = \eta\Bigl(1-\frac\eta2\Bigr)\sum_\ell\frac{G_\ell^2}{H_\ell+\lambda} + \frac{\eta^2\lambda}{2}\sum_\ell\frac{G_\ell^2}{(H_\ell+\lambda)^2}.
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Each split's gain is children minus parent. Summing over internal nodes, every internal node other than the root appears once as a child and once as a parent, so the sum telescopes to \eqref{eq:telescope}. For \eqref{eq:newton}, the Newton model of the loss change is $\sum_\ell(G_\ell v_\ell + \tfrac12H_\ell v_\ell^2)$ with $v_\ell = -\eta G_\ell/(H_\ell+\lambda)$; write $H_\ell = (H_\ell+\lambda)-\lambda$ and collect terms.
+\end{proof}
+
+\emph{Heuristic consequence.} When $\lambda\ll H_\ell$ and $G\approx 0$, a tree's total gain is its Newton loss decrease divided by $\eta(1-\eta/2)$, which is 10.5 at $\eta = 0.1$ (the neglected $\lambda$ term is at most $\eta/(2-\eta)\approx 5\%$). If the Newton model approximates the true loss change, the \code{total\_gain} recorded by all features over the ensemble is about $10.5\times$ the training log-loss removed. That loss starts at $nH_2(\phat)\approx\nmin(1+\ln(1/\phat))$ nats under the prevalence intercept, where $H_2$ is the binary entropy, so more loss is available to memorise at small $\phat$. The identity concerns \code{total\_gain}; the selection statistic in most of this paper is the mean \code{gain}, and we have no argument linking the two. The measured fraction of the initial loss removed is a Newton-approximation estimate (\cref{app:agreement}, row P15).
+
+\subsection{Keep rate of a null candidate in Boruta-style selection}\label{app:rounds-grid}
+
+\Cref{tab:rounds-grid} evaluates $\P(\Bin(R,\pi) > r_R)$ for a constant hit rate $\pi = 1/(K+1)$, the keep rate \cref{prop:rounds} would give if the hit rate did not vary between data sets. It grows with the number of candidates $d$, because the Bonferroni threshold $r_R$ falls, and it is not monotone in $R$.
+
+\begin{table}[h]
+\centering\small
+\caption{Keep rate of a null candidate under a constant hit rate $1/(K+1)$, with $K = 10$ shadows, $\alpha = 0.05$ and a Bonferroni correction over $d$ candidates, as a function of the number of rounds $R$. In parentheses: the rejection threshold $r_R$.}\label{tab:rounds-grid}
+\begin{tabular}{lcccccc}
+\toprule
+$d$ & $R = 10$ & 18 & 20 & 40 & 60 & 100\\
+\midrule
+10 & 0.614 (0) & 0.074 (3) & 0.102 (3) & 0.000 (11) & 0.000 (19) & 0.000 (36)\\
+50 & 0.614 (0) & 0.221 (2) & 0.272 (2) & 0.003 (9) & 0.000 (17) & 0.000 (34)\\
+200 & 1.000 ($-1$) & 0.496 (1) & 0.272 (2) & 0.009 (8) & 0.000 (16) & 0.000 (32)\\
+1000 & 1.000 ($-1$) & 0.820 (0) & 0.554 (1) & 0.026 (7) & 0.000 (14) & 0.000 (30)\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+In practice the hit rate varies between data sets, and the measured keep rate at large $R$ is set by that variation (\cref{sec:methods}); the table gives the part of the keep rate that is due to the test alone.

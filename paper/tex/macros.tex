@@ -1,0 +1,42 @@
+% ---------------------------------------------------------------- statements
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{conjecture}{Conjecture}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+\crefname{conjecture}{Conjecture}{Conjectures}
+\crefname{proposition}{Proposition}{Propositions}
+
+% ---------------------------------------------------------------- notation
+\newcommand{\nmin}{n_{\min}}
+\newcommand{\phat}{\hat p}
+\newcommand{\sauc}{s_{\mathrm{AUC}}}
+\newcommand{\E}{\mathbb{E}}
+\renewcommand{\P}{\mathbb{P}}
+\newcommand{\Gain}{\operatorname{Gain}}
+\newcommand{\Bin}{\operatorname{Binomial}}
+\newcommand{\logit}{\operatorname{logit}}
+\newcommand{\AUC}{\operatorname{AUC}}
+\newcommand{\FNR}{\mathrm{FNR}}
+\newcommand{\FPR}{\mathrm{FPR}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\pkg}{\code{shadowselect}}
+
+% Code location: withheld in the anonymous submission.
+\ifdefined\anonymous
+  \newcommand{\coderef}{the supplementary material}
+  \newcommand{\repourl}{\textit{(repository URL withheld for double-blind review)}}
+\else
+  \newcommand{\coderef}{\url{https://github.com/Daniellopesba/shadow-feature-selection}}
+  \newcommand{\repourl}{\url{https://github.com/Daniellopesba/shadow-feature-selection}}
+\fi
+
+% Numbers computed from results/ by experiments/paper_numbers.py
+\InputIfFileExists{generated/numbers}{}{}
+
+\setlist{itemsep=1pt,topsep=3pt,parsep=0pt,leftmargin=*}
+\captionsetup{font=small,labelfont=bf}

@@ -150,7 +150,7 @@ def fig1_first_split():
     save(fig, "fig1_first_split")
 
 
-def figA1_intercept_toll():
+def figA2_intercept_toll():
     r = pd.read_csv(RESULTS / "e1_root_split.csv.gz")
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.8))
     ax = axes[0]
@@ -181,7 +181,7 @@ def figA1_intercept_toll():
            title="(b) the intercept toll, hist")
     fig.tight_layout()
     legend_below(fig, axes, ncol=3)
-    save(fig, "figA1_intercept_toll")
+    save(fig, "figA2_intercept_toll")
 
 
 # --------------------------------------------------------------------- E2: full ensemble
@@ -244,7 +244,7 @@ def fig2_scaling():
     save(fig, "fig2_scaling")
 
 
-def figA2_fnr_vs_nmin():
+def figA1_fnr_vs_nmin():
     agg = e2_cells(load_e2().query("delta > 0"))
     fig, axes = plt.subplots(2, 3, figsize=(7.2, 4.4), sharex=True, sharey=True)
     for i, icpt in enumerate(("prior", "auto")):
@@ -264,7 +264,7 @@ def figA2_fnr_vs_nmin():
                 ax.set_xlabel("$n_{\\min}$")
     fig.tight_layout()
     legend_below(fig, axes, ncol=6)
-    save(fig, "figA2_fnr_vs_nmin")
+    save(fig, "figA1_fnr_vs_nmin")
 
 
 def table_e2():
@@ -374,7 +374,7 @@ BACKEND_STYLE = {
 }
 
 
-def figA5_backends():
+def figA7_backends():
     d = pd.read_csv(RESULTS / "e5_backends.csv.gz")
     d = d[d.importance == "native"]
     agg = d.groupby(["backend", "p", "n_min"]).fnr_q100.agg(["mean", se]).reset_index()
@@ -389,10 +389,10 @@ def figA5_backends():
     axes[0].set_ylabel("FNR (max-shadow rule)")
     fig.tight_layout()
     legend_below(fig, axes, ncol=3)
-    save(fig, "figA5_backends")
+    save(fig, "figA7_backends")
 
 
-def figA6_shadows():
+def figA5_shadows():
     e8 = pd.read_csv(RESULTS / "e8_many_shadows.csv.gz")
     col = "fnr_q100" if "fnr_q100" in e8 else "fnr"
     k = "n_noise" if "n_noise" in e8 else "n_shadows"
@@ -407,7 +407,7 @@ def figA6_shadows():
            title="number of shadows, $\\delta$ = 0.5, $p$ = 0.1")
     ax.legend()
     fig.tight_layout()
-    save(fig, "figA6_shadows")
+    save(fig, "figA5_shadows")
 
 
 # --------------------------------------------------------------------- methods (E4, E4b, E4c, E6)
@@ -485,7 +485,7 @@ FIG4_PANELS = {
 }
 
 
-def fig3_methods():
+def figA6_methods():
     g = method_summary(load_methods())
     fig, axes = plt.subplots(2, 2, figsize=(7.2, 5.6), sharex=True)
     for j, (title, series) in enumerate(FIG4_PANELS.items()):
@@ -511,7 +511,7 @@ def fig3_methods():
     for ax in axes[0]:
         ax.set_xscale("log")
     fig.tight_layout()
-    save(fig, "fig3_methods")
+    save(fig, "figA6_methods")
 
 
 TABLE2_ROWS = [
@@ -527,7 +527,18 @@ TABLE2_ROWS = [
 ]
 
 
+TABLE2_MAIN = {"oneshot_gain", "oneshot_shap", "mwu_shadow_max", "class_weight",
+               "boruta_gain", "boruta_gain_strict", "borutapy", "borutapy_balanced",
+               "oof_perm_2se", "knockoff_plus", "l1_cv", "mwu_bh_0.1", "mwu_bh_0.2"}
+
+
 def table_methods():
+    """Writes table_methods (main-text subset) and table_methods_full (appendix)."""
+    _table_methods("table_methods_full", None)
+    _table_methods("table_methods", TABLE2_MAIN)
+
+
+def _table_methods(name, keep):
     d = load_methods()
     g = method_summary(d)
     sec = d.groupby("method").seconds.median() if "seconds" in d else pd.Series(dtype=float)
@@ -536,6 +547,8 @@ def table_methods():
     for head, methods in TABLE2_ROWS:
         lines.append(rf"\multicolumn{{{len(nmins) + 2}}}{{l}}{{\emph{{{head}}}}} \\")
         for m in methods:
+            if keep is not None and m not in keep:
+                continue
             s = g[g.method == m].set_index("n_min")
             if not len(s):
                 continue
@@ -548,7 +561,7 @@ def table_methods():
             t = sec.get(m, np.nan)
             ts = "--" if not np.isfinite(t) else (f"{t:.2f}" if t < 10 else f"{t:.0f}")
             lines.append(f"\\quad {METHOD_LABELS[m]} & " + " & ".join(cells) + f" & {ts} \\\\")
-    write_tex("table_methods", "\n".join(lines) + "\n")
+    write_tex(name, "\n".join(lines) + "\n")
     # standard errors, for the text
     g.to_csv(RESULTS / "methods_summary.csv", index=False)
 
@@ -605,38 +618,42 @@ def table_robustness(n_min=100):
     write_tex("table_robustness", "\n".join(lines) + "\n")
 
 
-REAL_METHODS = ["oneshot_gain", "oneshot_shap", "boruta_gain", "boruta_gain_strict",
-                "borutapy_balanced", "oof_perm_2se", "mwu_bh_0.1", "all_features"]
+REAL_METHODS = [("oneshot_gain", "max rule, gain"), ("oneshot_shap", "max rule, TreeSHAP"),
+                ("oof_perm_2se", "out-of-fold permutation"),
+                ("boruta_gain_strict", "Boruta rounds, accepted only"),
+                ("boruta_gain", "Boruta rounds, keep tentative"),
+                ("borutapy_balanced", "BorutaPy, balanced forest"),
+                ("mwu_bh_0.1", "Mann--Whitney, BH $q = 0.1$")]
 
 
 def table_realdata():
+    """Rows: methods. Columns: FNR / FPR at each n_min, then PR-AUC relative to all features."""
     d = pd.read_csv(RESULTS / "e11_real_data.csv.gz")
-    base = d[d.method == "all_features"].set_index(["dataset", "n_min", "p", "repeat"]).pr_auc
-    d = d.join(base.rename("pr_all"), on=["dataset", "n_min", "p", "repeat"])
+    key = ["dataset", "n_min", "p", "repeat"]
+    base = d[d.method == "all_features"].set_index(key).pr_auc
+    d = d.join(base.rename("pr_all"), on=key)
     d["rel_pr"] = d.pr_auc / d.pr_all
     lines = []
-    for n_min in (25, 50, 100, 250):
-        s = d[d.n_min == n_min]
+    for m, label in REAL_METHODS:
         cells = []
-        for m in REAL_METHODS:
-            t = s[s.method == m]
-            if not len(t):
-                cells.append("--")
-                continue
-            if m == "all_features":
-                cells.append(f"{t.pr_auc.mean():.3f}")
-            else:
-                cells.append(f"{t.fnr.mean():.2f} / {t.fpr.mean():.2f} / {t.rel_pr.mean():.2f}")
-        lines.append(f"{n_min} & " + " & ".join(cells) + r" \\")
+        for n_min in (25, 50, 100, 250):
+            t = d[(d.method == m) & (d.n_min == n_min)]
+            cells.append(f"{t.fnr.mean():.2f} / {t.fpr.mean():.2f}")
+        t = d[(d.method == m) & (d.n_min == 100)]
+        cells.append(f"{t.rel_pr.mean():.2f}")
+        lines.append(f"{label} & " + " & ".join(cells) + r" \\")
+    t = d[(d.method == "all_features") & (d.n_min == 100)]
+    lines.append(r"\midrule")
+    lines.append(r"all features (PR-AUC) & & & & & " + f"{t.pr_auc.mean():.2f}" + r" \\")
     write_tex("table_realdata", "\n".join(lines) + "\n")
 
 
 if __name__ == "__main__":
     import sys
 
-    jobs = [fig1_first_split, figA1_intercept_toll, fig2_scaling, figA2_fnr_vs_nmin, table_e2, table_sbands,
-            figA3_rounds, figA4_mechanism, figA5_backends, figA6_shadows,
-            fig3_methods, table_methods, table_wide, table_robustness, table_realdata]
+    jobs = [fig1_first_split, figA2_intercept_toll, fig2_scaling, figA1_fnr_vs_nmin, table_e2, table_sbands,
+            figA3_rounds, figA4_mechanism, figA7_backends, figA5_shadows,
+            figA6_methods, table_methods, table_wide, table_robustness, table_realdata]
     only = set(sys.argv[1:])
     for f in jobs:
         if only and f.__name__ not in only:

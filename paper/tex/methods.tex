@@ -1,10 +1,10 @@
 \section{Selection methods at both error rates}\label{sec:methods}
 
-A method that lowers the bar loses fewer relevant features and keeps more irrelevant ones, so methods must be compared at both error rates. E4 puts 5 relevant candidates ($\delta = 0.5$, so $s = \nmin/4$) and 5 irrelevant ones in each data set; every shadow-based method builds its own $K = 10$ shadows (one permuted copy of each candidate), and all methods see the same 240 data sets ($\nmin$ from 10 to 500, $\phat\in\{0.01, 0.1\}$, 20 repeats). \Cref{tab:methods} gives both error rates, averaged over the two prevalences, and \cref{fig:methods} shows the main methods with their uncertainty. One-shot rules share the level $1/(K+1) = 0.091$ (\cref{prop:level}); their measured false positive rates, 0.08--0.09 pooled (row P9 of \cref{tab:agreement}), make their false negative rates directly comparable.
+A method that lowers the bar loses fewer relevant features and keeps more irrelevant ones, so methods must be compared at both error rates. E4 puts 5 relevant candidates ($\delta = 0.5$, so $s = \nmin/4$) and 5 irrelevant ones in each data set; every shadow-based method builds its own $K = 10$ shadows (one permuted copy of each candidate), and all methods see the same 240 data sets ($\nmin$ from 10 to 500, $\phat\in\{0.01, 0.1\}$, 20 repeats). \Cref{tab:methods} gives both error rates for the main methods, averaged over the two prevalences (all methods in \cref{tab:methods-full}), and \cref{fig:methods} in \cref{app:methods-fig} shows the main methods with their uncertainty. One-shot rules share the level $1/(K+1) = 0.091$ (\cref{prop:level}); their measured false positive rates, 0.08--0.09 pooled (row P9 of \cref{tab:agreement}), make their false negative rates directly comparable.
 
-\begin{table}[t]
+\begin{table}[tbp]
 \centering\small
-\caption{FNR / FPR by method and minority count ($\delta = 0.5$; 300-tree XGBoost unless stated; $K = 10$ shadows; 40 data sets per entry, standard errors at most 0.05 for FNR and 0.05 for FPR). The last column is the median wall time in seconds on one core at $\nmin = 100$; Boruta-style rounds cost about 20 one-shot fits.}\label{tab:methods}
+\caption{FNR / FPR for the main methods (all methods in \cref{tab:methods-full}) and minority count ($\delta = 0.5$; 300-tree XGBoost unless stated; $K = 10$ shadows; 40 data sets per entry, standard errors at most 0.05 for FNR and 0.05 for FPR). The last column is the median wall time in seconds on one core at $\nmin = 100$; Boruta-style rounds cost about 20 one-shot fits.}\label{tab:methods}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}lcccccr@{}}
 \toprule
@@ -14,12 +14,6 @@ Method & $\nmin = 10$ & 25 & 50 & 100 & 250 & s\\
 \bottomrule
 \end{tabular}
 \end{table}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{fig3_methods}
-\caption{Both error rates by method ($\delta = 0.5$, the same 240 data sets for every method). Top: relevant candidates dropped; bottom: irrelevant candidates kept, with the level $1/(K+1)$ of the one-shot rules dashed. (a) One-shot max-shadow rules with three tree importances and with the Mann--Whitney statistic. (b) Other selectors. Error bars: two standard errors, clustered by data set.}\label{fig:methods}
-\end{figure}
 
 \begin{enumerate}
   \item \emph{The importance measure matters little.} Mean gain, total gain and TreeSHAP agree within two standard errors, so BorutaSHAP's statistic does not escape the limit.
@@ -41,7 +35,7 @@ E4w uses 100 candidates, 5 relevant ($\delta = 0.5$, $\phat = 0.05$; \cref{tab:w
 
 E9 changes one aspect of the model at a time ($\phat = 0.05$, $\delta = 0.5$, $K = 10$, 15 repeats): correlated relevant features ($\rho = 0.6$), proxies of them ($\rho = 0.9$), heavy tails ($t_3$), skew (log-normal), mixed binary and continuous features, a signal in the spread only (standard deviation 1.6 among positives), and an interaction only (two pairs correlated 0.6 among positives and 0 among negatives); \cref{tab:robustness}.
 
-\begin{table}[t]
+\begin{table}[tbp]
 \centering\small
 \caption{Departures from the Gaussian model (E9, $\nmin = 100$, $\phat = 0.05$, $\delta = 0.5$, $K = 10$): FNR / FPR. For the interaction model the FNR is over the four interacting columns.}\label{tab:robustness}
 \setlength{\tabcolsep}{4pt}
@@ -58,3 +52,20 @@ Model & gain & TreeSHAP & keep tentative & permutation & BH $q = 0.1$\\
 \emph{Correlation among relevant features hurts every tree importance}: with $\rho = 0.6$ the gain rule drops 0.65 at $\nmin = 100$, against 0.09 without, because correlated features share the splits. The rank test drops none, and its keep rate matches the $\sauc$ prediction of \cref{prop:mw} for correlated, heavy-tailed and skewed features (P14). \emph{The rank test is blind to signals that do not shift the distribution}: it drops 0.99 of the scale-only and 0.98 of the interacting features, which out-of-fold permutation finds (0.05 dropped). \emph{Heavy tails and skew make detection easier} at the same $\delta$, because $\sauc > s$ there.
 
 \subsection{Real data}\label{sec:realdata}
+
+E11 uses five public tables from PMLB \citep{olson2017pmlb} (adult, churn, coil2000, magic, spambase), with 10 to 85 real columns. To each we append 10 known-null columns, row-permutations of randomly chosen real columns, so that their marginals are realistic. Which real columns are relevant is not known, so we use a pseudo-truth from the full table: a real column counts as relevant if a Mann--Whitney test with Benjamini--Hochberg at $q = 0.001$ or a 40-round Boruta-style selection finds it, and columns neither finds are left out of both error rates. From a 70\% training pool we draw $\nmin \in \{25, 50, 100, 250\}$ positives at prevalence 0.1 or 0.02 where the pool allows, 10 draws per cell, and run each method on the subsample; the kept columns are then used to refit XGBoost, scored by PR-AUC on the fixed 30\% test split (\cref{tab:realdata}).
+
+\begin{table}[tbp]
+\centering\small
+\caption{Real tables with appended null columns (E11; 5 tables, 10 draws per cell; FNR against the pseudo-truth / FPR on the appended nulls, averaged over tables). The last column is the test PR-AUC of XGBoost refitted on the kept columns, relative to all columns, at $\nmin = 100$. BorutaPy ran only on subsamples with $n \le 2{,}500$; the other methods' rates on that subset differ from the full averages by at most 0.02 at $\nmin \le 100$.}\label{tab:realdata}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Method & $\nmin = 25$ & 50 & 100 & 250 & PR-AUC\\
+\midrule
+\csname @@input\endcsname generated/table_realdata
+\bottomrule
+\end{tabular}
+\end{table}
+
+The synthetic findings carry over. Every method loses most pseudo-relevant columns at $\nmin \le 50$, and every method's loss falls steadily as $\nmin$ grows. At fixed $\nmin$, prevalence 0.02 and 0.1 give false negative rates within 0.09 of each other, slightly lower at 0.02, where the subsample has more negatives. The appended nulls are kept at or below the one-shot level by every rule except Boruta-style rounds with tentative features kept (0.15--0.18, as \cref{prop:rounds} predicts for these $d$). Among the methods that hold the false positive rate under 0.1, the rank screen loses the fewest relevant columns at $\nmin \ge 100$ (0.19 at $\nmin = 250$, against 0.31 for BorutaPy and 0.38 for the gain rule), but not on every table: on magic, whose signals are not simple location shifts, the tree-based rounds do better. Selection did not improve prediction: refitting on the kept columns gave at most the PR-AUC of all columns, so on these tables the gain from selection is interpretability and cost, not accuracy.

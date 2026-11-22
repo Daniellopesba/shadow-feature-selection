@@ -32,6 +32,18 @@ attained at the median split $u \to 1/2$.
 
 The proof is in \cref{app:proof-fixed}. The ratio $\varphi(x)^2/(\Phi(x)(1-\Phi(x)))$ that appears is the efficiency of dichotomising a normal sample at $x$ \citep{cox1957note}. At finite $\delta$ the best threshold moves into the positives' tail and the maximum exceeds $(2/\pi)\nmin\delta^2$, by a factor of 1.03, 1.09 and 1.47 at $\delta = 0.3$, 0.5 and 1. So $(2/\pi)s$ is the small-effect value, not an upper bound.
 
+\subsection{Efficiency of one split relative to the rank test}\label{app:efficiency}
+
+\begin{corollary}[efficiency of one split relative to the rank test]\label{cor:efficiency}
+Let a feature follow a location family with bounded standardised density $f$, shift $\delta \to 0$ and $\nmin\delta^2 \to s$. A pre-specified threshold $u$, with $F^{-1}(u)$ uniquely defined and $f$ continuous there, has non-centrality $s\,J_f(u)^2/(u(1-u))$ (\cref{prop:fixed}), and the rank test has non-centrality $12 s\,(\int f^2)^2$ (\cref{prop:mw}, since $\AUC - \tfrac12 = \delta\int f^2 + o(\delta)$). The best fixed threshold, chosen knowing $f$, therefore has asymptotic relative efficiency
+\begin{equation}\label{eq:efficiency}
+  \mathrm{ARE}(f) = \frac{\sup_u J_f(u)^2/(u(1-u))}{12\,\bigl(\int f^2\bigr)^2}
+\end{equation}
+with respect to the rank test: $2/3$ for the normal, $3/4$ for the logistic, $0.85$ for $t_3$ and $4/3$ for the Laplace distribution (all at the median), and $4.8$ for the log-normal with $\sigma = 1$, at an interior maximiser $u \approx 0.01$ (the median split has $0.40$).
+\end{corollary}
+
+For the normal, $2/3$ is the Pitman efficiency of the median test relative to the Wilcoxon test \citep{mood1954asymptotic,hodges1956efficiency}: one fixed split needs 1.5 times as many positives as the rank test. For heavy-tailed features the gap narrows, and for strongly skewed ones a well-placed split beats the rank test; the log-normal value needs $\nmin u^* \gg 1$, so it matters only for $\nmin$ well above 100.
+
 \subsection{Histogram search}\label{app:hist}
 
 \begin{corollary}[histogram search]\label{cor:hist}

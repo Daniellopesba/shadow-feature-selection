@@ -28,7 +28,7 @@ This is the classical fact that, with a constant Hessian, the Newton gain at the
 
 \paragraph{The intercept, by XGBoost version.} We measured the default base score (\cref{tab:intercepts}): $b = 1/2$ in XGBoost~1.x; one Newton step from $F = 0$ in 2.0--2.1, so $b = \sigma(4\phat-2) \to 0.119$ as $\phat \to 0$; and the prevalence $b = \phat$, which makes the root gradient sum zero, from 3.0. We call $b = \phat$ the \emph{prevalence intercept}. When $b \ne \phat$, every split pays a toll.
 
-\begin{table}[t]
+\begin{table}[tbp]
 \centering\small
 \caption{XGBoost's default base score $b$ after fitting, by version and prevalence (identical for \code{exact} and \code{hist}), and the chi-square a first-tree split needs before its gain is positive (\cref{prop:toll}, approximation \eqref{eq:approx}, valid when both children have $H_c\gg\lambda$ and are not enriched in positives; $\lambda = 1$).}\label{tab:intercepts}
 \begin{tabular}{lcccccc}
@@ -160,15 +160,7 @@ for every pair of continuous class-conditional distributions.
 
 So the rank test's power depends only on $\sauc$, whatever the feature's distribution (proof in \cref{app:proof-mw}); at finite $n$, $s_*$ becomes about $s_*(1-\phat)$. By \eqref{eq:mw}, the split takes the \emph{largest} standardised deviation of $N(u)$ from $\nmin u$, the rank test the \emph{average} one, with a known null law.
 
-\begin{corollary}[efficiency of one split relative to the rank test]\label{cor:efficiency}
-Let a feature follow a location family with bounded standardised density $f$, shift $\delta \to 0$ and $\nmin\delta^2 \to s$. A pre-specified threshold $u$, with $F^{-1}(u)$ uniquely defined and $f$ continuous there, has non-centrality $s\,J_f(u)^2/(u(1-u))$ (\cref{prop:fixed}), and the rank test has non-centrality $12 s\,(\int f^2)^2$ (\cref{prop:mw}, since $\AUC - \tfrac12 = \delta\int f^2 + o(\delta)$). The best fixed threshold, chosen knowing $f$, therefore has asymptotic relative efficiency
-\begin{equation}\label{eq:efficiency}
-  \mathrm{ARE}(f) = \frac{\sup_u J_f(u)^2/(u(1-u))}{12\,\bigl(\int f^2\bigr)^2}
-\end{equation}
-with respect to the rank test: $2/3$ for the normal, $3/4$ for the logistic, $0.85$ for $t_3$ and $4/3$ for the Laplace distribution (all at the median), and $4.8$ for the log-normal with $\sigma = 1$, at an interior maximiser $u \approx 0.01$ (the median split has $0.40$).
-\end{corollary}
-
-For the normal, $2/3$ is the Pitman efficiency of the median test \citep{mood1954asymptotic,hodges1956efficiency}: one fixed split needs 1.5 times as many positives as the rank test. For skewed features a well-placed split can win, though the log-normal value needs $\nmin u^* \gg 1$. The shadow rule also pays for searching thresholds; a numerical evaluation of the limits ($K = 9$, level $0.1$, $\nmin = 50$) gives:
+A fixed split loses efficiency relative to the rank test: $2/3$ for a Gaussian feature, the Pitman efficiency of the median test \citep{mood1954asymptotic}, though for skewed features a well-placed split can win (\cref{cor:efficiency} in \cref{app:efficiency}). The shadow rule also pays for searching thresholds; a numerical evaluation of the limits ($K = 9$, level $0.1$, $\nmin = 50$) gives:
 
 \begin{center}\small
 \begin{tabular}{lccccc}

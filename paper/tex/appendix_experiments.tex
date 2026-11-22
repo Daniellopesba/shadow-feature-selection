@@ -39,7 +39,7 @@ $\nmin$ & $\delta = 0.3$ & 0.5 & 1 & 0.3 & 0.5 & 1 & cells\\
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=\textwidth]{figA2_fnr_vs_nmin}
+\includegraphics[width=\textwidth]{figA1_fnr_vs_nmin}
 \caption{E2 by cell: false negative rate against $\nmin$, by prevalence, effect size and intercept. Error bars: two standard errors.}\label{fig:e2cells}
 \end{figure}
 
@@ -47,7 +47,7 @@ $\nmin$ & $\delta = 0.3$ & 0.5 & 1 & 0.3 & 0.5 & 1 & cells\\
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=\textwidth]{figA1_intercept_toll}
+\includegraphics[width=\textwidth]{figA2_intercept_toll}
 \caption{The intercept toll in the first tree (E1). (a) Root win probability under both intercepts (exact search): open markers, XGBoost~2.x default; filled, prevalence intercept. (b) Probability that the first tree makes no split at all (\code{hist}).}\label{fig:toll}
 \end{figure}
 
@@ -71,8 +71,29 @@ E3 reads the importances after the first $k$ boosting rounds of the E2 ensembles
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.55\textwidth]{figA6_shadows}
+\includegraphics[width=0.55\textwidth]{figA5_shadows}
 \caption{E8: false negative rate of the one-shot rule with $K = 5$, 50 and 200 shadows ($\delta = 0.5$, $\phat = 0.1$). Error bars: two standard errors.}\label{fig:shadows}
+\end{figure}
+
+\subsection{Selection methods: all results}\label{app:methods-fig}
+
+\begin{table}[t]
+\centering\small
+\caption{All methods of E4: FNR / FPR by method and minority count ($\delta = 0.5$; 300-tree XGBoost unless stated; $K = 10$ shadows; 40 data sets per entry, standard errors at most 0.05 for FNR and 0.05 for FPR). The last column is the median wall time in seconds on one core at $\nmin = 100$; Boruta-style rounds cost about 20 one-shot fits.}\label{tab:methods-full}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lcccccr@{}}
+\toprule
+Method & $\nmin = 10$ & 25 & 50 & 100 & 250 & s\\
+\midrule
+\csname @@input\endcsname generated/table_methods_full 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figA6_methods}
+\caption{Both error rates by method ($\delta = 0.5$, the same 240 data sets for every method). Top: relevant candidates dropped; bottom: irrelevant candidates kept, with the level $1/(K+1)$ of the one-shot rules dashed. (a) One-shot max-shadow rules with three tree importances and with the Mann--Whitney statistic. (b) Other selectors. Error bars: two standard errors, clustered by data set.}\label{fig:methods}
 \end{figure}
 
 \subsection{Wide tables}\label{app:wide}
@@ -98,6 +119,6 @@ E5 repeats the E2 design at $\delta = 0.5$ with scikit-learn gradient boosting, 
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=\textwidth]{figA5_backends}
+\includegraphics[width=\textwidth]{figA7_backends}
 \caption{E5: false negative rate of the one-shot rule ($K = 5$) with other learners, at $\phat = 0.1$ and $0.01$. Error bars: two standard errors.}\label{fig:backends}
 \end{figure}

@@ -1,23 +1,14 @@
 \multicolumn{7}{l}{\emph{One fit, max-shadow rule ($K = 10$)}} \\
 \quad max rule, gain & 0.83 / 0.04 & 0.66 / 0.07 & 0.33 / 0.07 & 0.12 / 0.09 & 0.01 / 0.12 & 1.41 \\
-\quad max rule, total gain & 0.78 / 0.08 & 0.67 / 0.04 & 0.37 / 0.07 & 0.12 / 0.10 & 0.00 / 0.11 & 1.41 \\
 \quad max rule, TreeSHAP & 0.80 / 0.11 & 0.67 / 0.06 & 0.26 / 0.08 & 0.10 / 0.09 & 0.00 / 0.12 & 1.41 \\
 \quad max rule, Mann–Whitney & 0.66 / 0.08 & 0.38 / 0.09 & 0.06 / 0.07 & 0.01 / 0.09 & 0.00 / 0.07 & 0.01 \\
 \quad max rule, class weights & 0.82 / 0.10 & 0.74 / 0.04 & 0.42 / 0.13 & 0.23 / 0.09 & 0.01 / 0.08 & -- \\
-\quad max rule, 1:1 downsampling & 0.86 / 0.07 & 0.86 / 0.04 & 0.70 / 0.07 & 0.38 / 0.11 & 0.06 / 0.08 & -- \\
-\quad max rule, early stopping & 0.81 / 0.07 & 0.68 / 0.11 & 0.43 / 0.05 & 0.19 / 0.11 & 0.01 / 0.09 & -- \\
-\quad P90 rule, gain & 0.73 / 0.10 & 0.50 / 0.16 & 0.15 / 0.15 & 0.06 / 0.16 & 0.00 / 0.19 & -- \\
 \multicolumn{7}{l}{\emph{Repeated rounds (20 fits) and Boruta}} \\
 \quad Boruta rounds, gain, keep tentative & 0.63 / 0.14 & 0.38 / 0.17 & 0.07 / 0.15 & 0.03 / 0.18 & 0.00 / 0.15 & -- \\
 \quad Boruta rounds, gain, accepted only & 0.96 / 0.00 & 0.89 / 0.01 & 0.53 / 0.01 & 0.24 / 0.01 & 0.00 / 0.00 & -- \\
-\quad Boruta rounds, held-out permutation, keep tentative & 0.55 / 0.18 & 0.27 / 0.19 & 0.10 / 0.13 & 0.02 / 0.17 & 0.00 / 0.15 & -- \\
-\quad Boruta rounds, held-out permutation, accepted only & 0.99 / 0.00 & 0.95 / 0.00 & 0.83 / 0.00 & 0.57 / 0.00 & 0.04 / 0.00 & -- \\
 \multicolumn{7}{l}{\emph{Without shadows}} \\
-\quad out-of-fold permutation, mean $>0$ & 0.37 / 0.45 & 0.27 / 0.39 & 0.13 / 0.41 & 0.03 / 0.56 & 0.00 / 0.48 & 2.31 \\
 \quad out-of-fold permutation, mean $-$ 2 SE $>0$ & 0.77 / 0.07 & 0.73 / 0.05 & 0.49 / 0.07 & 0.24 / 0.14 & 0.03 / 0.12 & 2.31 \\
 \quad model-X knockoffs+, $q$ = 0.2 & 0.88 / 0.04 & 0.86 / 0.06 & 0.70 / 0.12 & 0.38 / 0.21 & 0.11 / 0.17 & 0.32 \\
-\quad model-X knockoffs, $q$ = 0.2 & 0.61 / 0.18 & 0.33 / 0.32 & 0.24 / 0.29 & 0.08 / 0.38 & 0.00 / 0.34 & 0.32 \\
 \quad $\ell_1$-logistic, CV penalty & 0.46 / 0.27 & 0.05 / 0.60 & 0.00 / 0.67 & 0.00 / 0.80 & 0.00 / 0.78 & 0.24 \\
-\quad stability selection ($\ell_1$), $E[V] \le 1$ & 0.98 / 0.00 & 0.99 / 0.00 & 1.00 / 0.00 & 1.00 / 0.00 & 1.00 / 0.00 & 1.25 \\
 \quad Mann–Whitney, BH $q$ = 0.1 & 0.78 / 0.02 & 0.45 / 0.04 & 0.05 / 0.05 & 0.01 / 0.04 & 0.00 / 0.04 & 0.01 \\
 \quad Mann–Whitney, BH $q$ = 0.2 & 0.66 / 0.06 & 0.24 / 0.15 & 0.04 / 0.09 & 0.00 / 0.16 & 0.00 / 0.10 & 0.01 \\

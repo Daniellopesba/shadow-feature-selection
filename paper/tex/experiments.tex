@@ -10,7 +10,7 @@ Each testable statement of \cref{sec:theory} was paired, before any comparison w
 
 \paragraph{The intercept toll (P6).} Under the XGBoost~2.x default at $\phat = 0.001$, $\nmin = 50$, $\delta = 0.5$, the first tree made no split in \numPsixNoSplitZeroZeroOne{} of runs, and \eqref{eq:toll} predicts whether it splits in \numPsixAgree\% of them (\cref{app:intercept-arm}).
 
-\begin{figure}[t]
+\begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{fig1_first_split}
 \caption{The first split against \cref{thm:limit}. (a) Median best split of a null feature, by $n$. With XGBoost's regularisation it depends on $\nmin$ and not on $n$; without it, it grows with $n$. (b) Probability that the root uses the informative feature rather than one of nine null features (exact search, prevalence intercept), against $s = \nmin\delta^2$; error bars are two binomial standard errors. Black: the limit \eqref{eq:limit}, without fitted parameters. Dotted: chance, 1/10.}\label{fig:first}
@@ -28,7 +28,7 @@ E2 fits 300-tree ensembles with five relevant and five null features and applies
 
 \paragraph{More shadows raise the bar (P11).} With $K = 5$, 50 and 200 null columns (E8, $\delta = 0.5$, $\phat = 0.1$), the false negative rate at $\nmin = 100$ ($s = 25$) is 0.11, 0.36 and 0.99, and it never decreases with $K$ beyond two standard errors (\cref{fig:shadows} in \cref{app:experiments}).
 
-\begin{figure}[t]
+\begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{fig2_scaling}
 \caption{The full ensemble (E2: 300 trees, prevalence intercept, $K = 5$). (a) False negative rate of the one-shot rule against $s = \nmin\delta^2$, one point per cell; the curve is the root-split failure $1 - \E[Q(M)^K]$ of \cref{cor:shadows}, a lower bound by \cref{conj:ensemble}(a). (b) The residual effect of the prevalence at fixed $\nmin$. Error bars: two standard errors.}\label{fig:scaling}

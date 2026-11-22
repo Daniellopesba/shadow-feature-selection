@@ -7,7 +7,6 @@ results/e12_intercepts.csv.
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 import xgboost
 from common import RESULTS

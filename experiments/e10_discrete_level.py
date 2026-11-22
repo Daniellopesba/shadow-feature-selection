@@ -52,9 +52,9 @@ def worker(s, r, seed):
     inv = np.argsort(order)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        m = xgb(
-            n_estimators=50, max_depth=3, random_state=seed, base_score=float(y.mean())
-        ).fit(XX[:, order], y)
+        m = xgb(n_estimators=50, max_depth=3, random_state=seed, base_score=float(y.mean())).fit(
+            XX[:, order], y
+        )
     rows = []
     for kind in ("gain", "total_gain", "shap"):
         if kind == "shap":

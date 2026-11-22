@@ -278,7 +278,10 @@ def stability_selection(X, y, seed, n_sub=50, pi_thr=0.6, ev=1.0):
     pos, neg = np.flatnonzero(y == 1), np.flatnonzero(y == 0)
     for _ in range(n_sub):
         idx = np.concatenate(
-            [rng.choice(pos, len(pos) // 2, replace=False), rng.choice(neg, len(neg) // 2, replace=False)]
+            [
+                rng.choice(pos, len(pos) // 2, replace=False),
+                rng.choice(neg, len(neg) // 2, replace=False),
+            ]
         )
         for i, C in enumerate(Cs):
             m = LogisticRegression(penalty="l1", C=C, solver="liblinear").fit(Z[idx], y[idx])

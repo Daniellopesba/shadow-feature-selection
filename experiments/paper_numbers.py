@@ -223,8 +223,8 @@ def p4():
         preds = {}
         for m, dlt in g[["n_min", "delta"]].drop_duplicates().itertuples(index=False):
             preds[(m, dlt)] = root_win(int(m), float(dlt), 9, n_bins=nb)
-        g["pred"] = [preds[(m, d)][0] for m, d in zip(g.n_min, g.delta)]
-        g["pred_se"] = [preds[(m, d)][1] for m, d in zip(g.n_min, g.delta)]
+        g["pred"] = [preds[(m, d)][0] for m, d in zip(g.n_min, g.delta, strict=True)]
+        g["pred_se"] = [preds[(m, d)][1] for m, d in zip(g.n_min, g.delta, strict=True)]
         g = g[informative(g.pred, g["mean"])]
         pv = g.pred.clip(0.005, 0.995)
         var = pv * (1 - pv) / g["count"] + g.pred_se**2
@@ -355,8 +355,8 @@ def p7():
     preds = {}
     for m, dlt in g[["n_min", "delta"]].drop_duplicates().itertuples(index=False):
         preds[(m, dlt)] = root_win(int(m), float(dlt), k, n_bins=256)
-    g["pred"] = [1 - preds[(m, d)][0] for m, d in zip(g.n_min, g.delta)]
-    g["pred_se"] = [preds[(m, d)][1] for m, d in zip(g.n_min, g.delta)]
+    g["pred"] = [1 - preds[(m, d)][0] for m, d in zip(g.n_min, g.delta, strict=True)]
+    g["pred_se"] = [preds[(m, d)][1] for m, d in zip(g.n_min, g.delta, strict=True)]
     g = g[informative(g.pred, g["mean"])]
     se = np.sqrt(g.se**2 + g.pred_se**2)
     ok = g["mean"] >= g.pred - 2 * se
@@ -464,7 +464,11 @@ def p10():
     ps = stats.norm.sf((pf["mean"] - bound) / np.maximum(pf.se, 1e-3))
     bo = g[g.shadows == "boruta"]
     for _, rw in g.iterrows():
-        macro(f"Pten{rw.shadows.replace('_', '')}{rw.case.replace('_', '')}{rw.importance.replace('_', '')}", rw["mean"], "{:.3f}")
+        macro(
+            f"Pten{rw.shadows.replace('_', '')}{rw.case.replace('_', '')}{rw.importance.replace('_', '')}",
+            rw["mean"],
+            "{:.3f}",
+        )
     hi = pf.loc[pf["mean"].idxmax()]
     bhi = bo.loc[bo["mean"].idxmax()]
     row(
@@ -484,7 +488,7 @@ def p11():
         return row("P11", "results missing", "pending")
     g = cell_stats(d, ["n_min", "n_noise"], "fnr_q100")
     res, ps = [], []
-    for m, v in g.groupby("n_min"):
+    for _m, v in g.groupby("n_min"):
         v = v.set_index("n_noise")
         ks = sorted(v.index)
         for i, k1 in enumerate(ks):
@@ -496,7 +500,8 @@ def p11():
                 res.append(b["mean"] >= a["mean"] - 2 * se)
                 ps.append(stats.norm.cdf((b["mean"] - a["mean"]) / max(se, 1e-3)))
     txt = "; ".join(
-        f"n_min {m}: " + ", ".join(f"K={int(k)} {x:.2f}" for k, x in zip(v.n_noise, v["mean"]))
+        f"n_min {m}: "
+        + ", ".join(f"K={int(k)} {x:.2f}" for k, x in zip(v.n_noise, v["mean"], strict=True))
         for m, v in g.groupby("n_min")
     )
     row(
@@ -581,7 +586,7 @@ def sauc_mu(auc, n_min):
 
 
 def p13():
-    e6, e4b = load("e6_univariate.csv.gz"), load("e4b_baselines.csv.gz")
+    e6 = load("e6_univariate.csv.gz")
     if e6 is None:
         return row("P13", "results missing", "pending")
     auc = stats.norm.cdf(0.5 / np.sqrt(2))
@@ -589,13 +594,20 @@ def p13():
     for meth in ("mwu_shadow_max", "mwu_bh_0.2"):
         g = cell_stats(e6[e6.method == meth], ["n_min", "p"], "fnr")
         for _, rw in g.iterrows():
-            pred = mw_predict(sauc_mu(auc, rw.n_min), 5, 5, 10, reps=50_000, seed=int(rw.n_min))[meth][0]
+            pred = mw_predict(sauc_mu(auc, rw.n_min), 5, 5, 10, reps=50_000, seed=int(rw.n_min))[
+                meth
+            ][0]
             if not informative([pred], [rw["mean"]])[0]:
                 continue
             ok = abs(rw["mean"] - pred) <= 0.05 + 2 * rw.se
             res.append(ok)
             ps.append(2 * stats.norm.sf(abs(rw["mean"] - pred) / max(rw.se, 1e-3)))
-            parts.append((abs(rw["mean"] - pred), f"{meth.replace('mwu_', '').replace('_', ' ')}, n_min {int(rw.n_min)}, p {rw.p}: {rw['mean']:.2f} vs {pred:.2f}"))
+            parts.append(
+                (
+                    abs(rw["mean"] - pred),
+                    f"{meth.replace('mwu_', '').replace('_', ' ')}, n_min {int(rw.n_min)}, p {rw.p}: {rw['mean']:.2f} vs {pred:.2f}",
+                )
+            )
     worst = max(parts)[1]
     row(
         "P13",
@@ -622,13 +634,23 @@ def p14():
         for meth in ("mwu_shadow_max", "mwu_bh_0.1"):
             g = cell_stats(d[(d.dgp == dgp) & (d.method == meth)], ["n_min"], "keep_rel")
             for _, rw in g.iterrows():
-                pred = 1 - mw_predict(sauc_mu(a, rw.n_min), 5, 5, 10, reps=50_000, seed=int(rw.n_min))[meth][0]
+                pred = (
+                    1
+                    - mw_predict(sauc_mu(a, rw.n_min), 5, 5, 10, reps=50_000, seed=int(rw.n_min))[
+                        meth
+                    ][0]
+                )
                 if not informative([pred], [rw["mean"]])[0]:
                     continue
                 ok = abs(rw["mean"] - pred) <= 0.05 + 2 * rw.se
                 res.append(ok)
                 ps.append(2 * stats.norm.sf(abs(rw["mean"] - pred) / max(rw.se, 1e-3)))
-                parts.append((abs(rw["mean"] - pred), f"{dgp.replace('_', ' ')}, {meth.replace('mwu_', '').replace('_', ' ')}, n_min {int(rw.n_min)}: {rw['mean']:.2f} vs {pred:.2f}"))
+                parts.append(
+                    (
+                        abs(rw["mean"] - pred),
+                        f"{dgp.replace('_', ' ')}, {meth.replace('mwu_', '').replace('_', ' ')}, n_min {int(rw.n_min)}: {rw['mean']:.2f} vs {pred:.2f}",
+                    )
+                )
     worst = max(parts)[1] if parts else "none"
     row(
         "P14",
@@ -650,8 +672,14 @@ def p15():
         y = (rng.random(n) < 1 / (1 + np.exp(-(X[:, 0] - 3)))).astype(float)
         b, eta, lam = y.mean(), 0.1, 1.0
         m = xgb.XGBClassifier(
-            n_estimators=1, max_depth=3, learning_rate=eta, reg_lambda=lam, gamma=0.0,
-            min_child_weight=1.0, tree_method="exact", base_score=b,
+            n_estimators=1,
+            max_depth=3,
+            learning_rate=eta,
+            reg_lambda=lam,
+            gamma=0.0,
+            min_child_weight=1.0,
+            tree_method="exact",
+            base_score=b,
         ).fit(X, y)
         t = m.get_booster().trees_to_dataframe()
         leaves = t[t.Feature == "Leaf"]
@@ -694,8 +722,25 @@ def fit_counts():
             d = load(f)
             if d is None:
                 continue
-            keys = [c for c in ("regime", "dgp", "dataset", "case", "shadows", "backend", "n", "p",
-                                "n_min", "delta", "intercept", "repeat", "seed") if c in d.columns]
+            keys = [
+                c
+                for c in (
+                    "regime",
+                    "dgp",
+                    "dataset",
+                    "case",
+                    "shadows",
+                    "backend",
+                    "n",
+                    "p",
+                    "n_min",
+                    "delta",
+                    "intercept",
+                    "repeat",
+                    "seed",
+                )
+                if c in d.columns
+            ]
             total += len(d[keys].drop_duplicates())
         macro(f"{name}Fits", f"{total:,}".replace(",", "{,}") if total else "--", "{}")
 
@@ -707,10 +752,14 @@ def intercept_gap():
     if d is None:
         return
     g = d[(d.importance == "gain") & (d.delta > 0)]
-    w = g.pivot_table(index=["n_min", "p", "delta", "repeat"], columns="intercept", values="fnr_q100")
+    w = g.pivot_table(
+        index=["n_min", "p", "delta", "repeat"], columns="intercept", values="fnr_q100"
+    )
     w["gap"] = w["auto"] - w["prior"]
-    for name, sel in (("Small", w.index.get_level_values("p") <= 0.01),
-                      ("Large", w.index.get_level_values("p") >= 0.05)):
+    for name, sel in (
+        ("Small", w.index.get_level_values("p") <= 0.01),
+        ("Large", w.index.get_level_values("p") >= 0.05),
+    ):
         x = w[sel].gap
         cell = x.groupby(level=["n_min", "p", "delta"]).mean()
         macro(f"GapMean{name}", x.mean(), "{:+.2f}")
@@ -734,7 +783,11 @@ def intercept_gap():
     macro("XgbThreeMaxDiff", "--", "{}")
     macro("XgbThreeCells", "--", "{}")
     if x3 is not None:
-        a = x3[(x3.importance == "gain") & (x3.delta > 0)].groupby(["n_min", "p", "delta"]).fnr_q100.mean()
+        a = (
+            x3[(x3.importance == "gain") & (x3.delta > 0)]
+            .groupby(["n_min", "p", "delta"])
+            .fnr_q100.mean()
+        )
         b = w.prior.groupby(level=["n_min", "p", "delta"]).mean().reindex(a.index)
         macro("XgbThreeMaxDiff", float((a - b).abs().max()))
         macro("XgbThreeCells", len(a), "{}")
@@ -840,8 +893,21 @@ def write_outputs():
 
 
 ALL = dict(
-    P1=p1, P2=p2, P3=p3, P4=p4, P5=p5, P6=p6, P7=p7, P8=p8, P9=p9, P10=p10,
-    P11=p11, P12=p12, P13=p13, P14=p14, P15=p15,
+    P1=p1,
+    P2=p2,
+    P3=p3,
+    P4=p4,
+    P5=p5,
+    P6=p6,
+    P7=p7,
+    P8=p8,
+    P9=p9,
+    P10=p10,
+    P11=p11,
+    P12=p12,
+    P13=p13,
+    P14=p14,
+    P15=p15,
 )
 
 if __name__ == "__main__":

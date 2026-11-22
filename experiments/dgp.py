@@ -1,4 +1,6 @@
-"""Data-generating processes for the robustness study (E9, paper: departures from the Gaussian model).
+"""Data-generating processes for the robustness study.
+
+E9; paper: departures from the Gaussian model.
 
 Every generator returns ``X, y, roles`` with exactly ``n_min = round(n p)``
 positives. ``roles`` labels each column:

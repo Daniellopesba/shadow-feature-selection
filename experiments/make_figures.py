@@ -112,16 +112,29 @@ def fig1_first_split():
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.9))
 
     ax = axes[0]
-    for (lam, ls, lab) in ((1.0, "-", "XGBoost defaults ($\\lambda = w = 1$)"),
-                           (0.0, ":", "no regularisation ($\\lambda = w = 0$)")):
-        for k, (n, col) in enumerate(((1_000, OI["sky"]), (10_000, OI["blue"]), (100_000, OI["black"]))):
+    for lam, ls, lab in (
+        (1.0, "-", "XGBoost defaults ($\\lambda = w = 1$)"),
+        (0.0, ":", "no regularisation ($\\lambda = w = 0$)"),
+    ):
+        for n, col in ((1_000, OI["sky"]), (10_000, OI["blue"]), (100_000, OI["black"])):
             s = t[(t.intercept == "prior") & (t.lam == lam) & (t.n == n)].sort_values("n_min")
-            ax.plot(s.n_min, s.q50, ls, color=col, marker="o", ms=2.5,
-                    label=f"$n$ = {n:,}" if lam == 1.0 else None)
+            ax.plot(
+                s.n_min,
+                s.q50,
+                ls,
+                color=col,
+                marker="o",
+                ms=2.5,
+                label=f"$n$ = {n:,}" if lam == 1.0 else None,
+            )
         ax.plot([], [], ls, color=OI["grey"], label=lab)
-    ax.set(xscale="log", yscale="log", xlabel="minority count $n_{\\min}$",
-           ylabel="median best split gain (eq. 1)",
-           title="(a) null feature: depends on $n_{\\min}$, not $n$")
+    ax.set(
+        xscale="log",
+        yscale="log",
+        xlabel="minority count $n_{\\min}$",
+        ylabel="median best split gain (eq. 1)",
+        title="(a) null feature: depends on $n_{\\min}$, not $n$",
+    )
     ax.set_yticks([2, 3, 4, 6])
     ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
     ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
@@ -135,16 +148,34 @@ def fig1_first_split():
         s = g[g.p == p]
         col, mk = P_STYLE[p]
         err = 2 * np.sqrt(s["mean"] * (1 - s["mean"]) / s["count"])
-        ax.errorbar(s.s, s["mean"], yerr=err, fmt=mk, ms=3, color=col, alpha=0.85,
-                    elinewidth=0.6, label=f"XGBoost, $p$ = {p}")
+        ax.errorbar(
+            s.s,
+            s["mean"],
+            yerr=err,
+            fmt=mk,
+            ms=3,
+            color=col,
+            alpha=0.85,
+            elinewidth=0.6,
+            label=f"XGBoost, $p$ = {p}",
+        )
     for n_min, ls in ((50, "-"), (500, "--")):
         deltas = np.linspace(0.05, 1.0, 14)
-        ax.plot(n_min * deltas**2, root_prediction_curve(n_min, deltas), ls, color="black",
-                lw=1, label=f"limit (Thm 1), $n_{{\\min}}$ = {n_min}")
+        ax.plot(
+            n_min * deltas**2,
+            root_prediction_curve(n_min, deltas),
+            ls,
+            color="black",
+            lw=1,
+            label=f"limit (Thm 1), $n_{{\\min}}$ = {n_min}",
+        )
     ax.axhline(0.1, color=OI["grey"], lw=0.8, ls=":")
-    ax.set(xscale="log", xlabel="$s = n_{\\min}\\delta^2$",
-           ylabel="P(root uses the informative feature)",
-           title="(b) 1 informative vs 9 null features")
+    ax.set(
+        xscale="log",
+        xlabel="$s = n_{\\min}\\delta^2$",
+        ylabel="P(root uses the informative feature)",
+        title="(b) 1 informative vs 9 null features",
+    )
     ax.legend(loc="upper left", fontsize=6, ncol=1)
     fig.tight_layout()
     save(fig, "fig1_first_split")
@@ -161,24 +192,40 @@ def figA2_intercept_toll():
         for p in sorted(g.p.unique(), reverse=True):
             s = g[(g.intercept == icpt) & (g.p == p)]
             col, mk = P_STYLE[p]
-            ax.scatter(s.s, s.root_is_real, marker=mk, s=13, edgecolor=col,
-                       facecolor=col if fill else "none", lw=0.8,
-                       label=f"$p$ = {p}, {'prevalence' if fill else 'XGBoost 2.x default'}")
-    ax.set(xscale="log", xlabel="$s = n_{\\min}\\delta^2$",
-           ylabel="P(root uses the informative feature)",
-           title="(a) exact search, both intercepts")
+            ax.scatter(
+                s.s,
+                s.root_is_real,
+                marker=mk,
+                s=13,
+                edgecolor=col,
+                facecolor=col if fill else "none",
+                lw=0.8,
+                label=f"$p$ = {p}, {'prevalence' if fill else 'XGBoost 2.x default'}",
+            )
+    ax.set(
+        xscale="log",
+        xlabel="$s = n_{\\min}\\delta^2$",
+        ylabel="P(root uses the informative feature)",
+        title="(a) exact search, both intercepts",
+    )
     ax = axes[1]
     h = r[r.tree_method == "hist"]
-    ns = h.groupby(["intercept", "p", "n_min"]).outcome.apply(
-        lambda v: (v == "no_split").mean()).reset_index()
+    ns = (
+        h.groupby(["intercept", "p", "n_min"])
+        .outcome.apply(lambda v: (v == "no_split").mean())
+        .reset_index()
+    )
     for icpt, ls, fill in (("auto", "-", False), ("prior", ":", True)):
         for p in sorted(ns.p.unique(), reverse=True):
             s = ns[(ns.intercept == icpt) & (ns.p == p)].sort_values("n_min")
             col, mk = P_STYLE[p]
-            ax.plot(s.n_min, s.outcome, ls, marker=mk, ms=3, color=col,
-                    mfc=col if fill else "none")
-    ax.set(xscale="log", xlabel="$n_{\\min}$", ylabel="P(first tree does not split)",
-           title="(b) the intercept toll, hist")
+            ax.plot(s.n_min, s.outcome, ls, marker=mk, ms=3, color=col, mfc=col if fill else "none")
+    ax.set(
+        xscale="log",
+        xlabel="$n_{\\min}$",
+        ylabel="P(first tree does not split)",
+        title="(b) the intercept toll, hist",
+    )
     fig.tight_layout()
     legend_below(fig, axes, ncol=3)
     save(fig, "figA2_intercept_toll")
@@ -191,8 +238,11 @@ def load_e2(name="e2_sweep"):
 
 
 def e2_cells(d):
-    agg = d.groupby(["regime", "n", "p", "n_min", "delta", "intercept"]).fnr_q100.agg(
-        ["mean", se, "count"]).reset_index()
+    agg = (
+        d.groupby(["regime", "n", "p", "n_min", "delta", "intercept"])
+        .fnr_q100.agg(["mean", se, "count"])
+        .reset_index()
+    )
     agg["s"] = agg.n_min * agg.delta**2
     return agg
 
@@ -215,15 +265,30 @@ def fig2_scaling():
     ax = axes[0]
     for delta, (col, mk) in DELTA_STYLE.items():
         s = pr[pr.delta == delta]
-        ax.errorbar(s.s, s["mean"], yerr=2 * s["se"], fmt=mk, ms=3, color=col, elinewidth=0.6,
-                    label=f"$\\delta$ = {delta}")
+        ax.errorbar(
+            s.s,
+            s["mean"],
+            yerr=2 * s["se"],
+            fmt=mk,
+            ms=3,
+            color=col,
+            elinewidth=0.6,
+            label=f"$\\delta$ = {delta}",
+        )
     ss = np.unique(np.round(np.geomspace(1, 1500, 18)))
     pred = [root_failure(200, np.sqrt(x / 200), 5) for x in ss]
-    ax.plot(ss, pred, "-", color="black", lw=1, label="root-split failure, $n_{\\min}$ = 200, $K$ = 5")
+    ax.plot(
+        ss, pred, "-", color="black", lw=1, label="root-split failure, $n_{\\min}$ = 200, $K$ = 5"
+    )
     ax.axhline(5 / 6, color=OI["grey"], lw=0.8, ls=":")
     ax.text(300, 5 / 6 + 0.02, "chance: 5/6", fontsize=6.5, color=OI["grey"])
-    ax.set(xscale="log", xlabel="$s = n_{\\min}\\delta^2$", ylabel="FNR (max-shadow rule)",
-           title="(a) the full ensemble against $s$", ylim=(-0.03, 1.0))
+    ax.set(
+        xscale="log",
+        xlabel="$s = n_{\\min}\\delta^2$",
+        ylabel="FNR (max-shadow rule)",
+        title="(a) the full ensemble against $s$",
+        ylim=(-0.03, 1.0),
+    )
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), fontsize=6.5, ncol=2, frameon=False)
 
     ax = axes[1]
@@ -232,13 +297,28 @@ def fig2_scaling():
             s = pr[(pr.delta == delta) & (pr.n_min == n_min)].sort_values("p")
             if s.p.nunique() < 2:
                 continue
-            col = {50: OI["vermillion"], 100: OI["orange"], 250: OI["green"], 500: OI["blue"]}[n_min]
-            ax.errorbar(s.p, s["mean"], yerr=2 * s["se"], fmt=ls, marker="o", ms=3, color=col,
-                        elinewidth=0.6, label=f"$n_{{\\min}}$ = {n_min}" if delta == 0.3 else None)
+            col = {50: OI["vermillion"], 100: OI["orange"], 250: OI["green"], 500: OI["blue"]}[
+                n_min
+            ]
+            ax.errorbar(
+                s.p,
+                s["mean"],
+                yerr=2 * s["se"],
+                fmt=ls,
+                marker="o",
+                ms=3,
+                color=col,
+                elinewidth=0.6,
+                label=f"$n_{{\\min}}$ = {n_min}" if delta == 0.3 else None,
+            )
     ax.plot([], [], "-", color=OI["grey"], label="$\\delta$ = 0.3")
     ax.plot([], [], "--", color=OI["grey"], label="$\\delta$ = 0.5")
-    ax.set(xscale="log", xlabel="prevalence $p$ (same $n_{\\min}$)", ylabel="FNR",
-           title="(b) residual effect of $p$ at fixed $n_{\\min}$")
+    ax.set(
+        xscale="log",
+        xlabel="prevalence $p$ (same $n_{\\min}$)",
+        ylabel="FNR",
+        title="(b) residual effect of $p$ at fixed $n_{\\min}$",
+    )
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), fontsize=6.5, ncol=3, frameon=False)
     fig.tight_layout()
     save(fig, "fig2_scaling")
@@ -254,8 +334,17 @@ def figA1_fnr_vs_nmin():
                 s = agg[(agg.intercept == icpt) & (agg.delta == delta) & (agg.p == p)]
                 s = s.sort_values("n_min")
                 col, mk = P_STYLE[p]
-                ax.errorbar(s.n_min, s["mean"], yerr=2 * s["se"], marker=mk, ms=3, lw=0.9,
-                            color=col, elinewidth=0.6, label=f"$p$ = {p}")
+                ax.errorbar(
+                    s.n_min,
+                    s["mean"],
+                    yerr=2 * s["se"],
+                    marker=mk,
+                    ms=3,
+                    lw=0.9,
+                    color=col,
+                    elinewidth=0.6,
+                    label=f"$p$ = {p}",
+                )
             name = "prevalence" if icpt == "prior" else "XGBoost 2.x default"
             ax.set(xscale="log", title=f"$\\delta$ = {delta}, {name} intercept")
             if j == 0:
@@ -290,14 +379,21 @@ def table_sbands():
     agg = e2_cells(load_e2().query("delta > 0"))
     c = agg[agg.intercept == "prior"].groupby(["n_min", "p", "delta"])["mean"].mean().reset_index()
     c["s"] = c.n_min * c.delta**2
-    bands = [(0, 5, "$< 5$", "50, 0.3"), (5, 10, "5--10", "100, 0.3"), (10, 25, "10--25", "50, 0.5"),
-             (25, 60, "25--60", "150, 0.5"), (60, np.inf, "$\\ge 60$", "250, 0.5")]
+    bands = [
+        (0, 5, "$< 5$", "50, 0.3"),
+        (5, 10, "5--10", "100, 0.3"),
+        (10, 25, "10--25", "50, 0.5"),
+        (25, 60, "25--60", "150, 0.5"),
+        (60, np.inf, "$\\ge 60$", "250, 0.5"),
+    ]
     lines = []
     for lo, hi, lab, ex in bands:
         x = c[(c.s >= lo) & (c.s < hi)]["mean"]
         n, d = ex.split(", ")
-        lines.append(f"{lab} & {x.min():.2f}--{x.max():.2f} & {x.median():.2f} & {len(x)} & "
-                     f"$\\nmin = {n}$, $\\delta = {d}$ \\\\")
+        lines.append(
+            f"{lab} & {x.min():.2f}--{x.max():.2f} & {x.median():.2f} & {len(x)} & "
+            f"$\\nmin = {n}$, $\\delta = {d}$ \\\\"
+        )
     write_tex("table_sbands", "\n".join(lines) + "\n")
 
 
@@ -309,21 +405,38 @@ def figA3_rounds():
     nosplit = (d.raw_real_mean == 0) & (d.raw_noise_max == 0)
     d["fnr_missing"] = d.fnr_q100.where(~nosplit)  # no split: undefined
     d["fnr_drop_all"] = d.fnr_q100.where(~nosplit, 1.0)  # no split: every feature dropped
-    agg = d.groupby(["n_min", "p", "delta", "intercept", "rounds"]).agg(
-        fnr=("fnr_missing", "mean"), fnr_all=("fnr_drop_all", "mean"),
-        n_ok=("fnr_missing", "count")).reset_index()
+    agg = (
+        d.groupby(["n_min", "p", "delta", "intercept", "rounds"])
+        .agg(
+            fnr=("fnr_missing", "mean"),
+            fnr_all=("fnr_drop_all", "mean"),
+            n_ok=("fnr_missing", "count"),
+        )
+        .reset_index()
+    )
     fig, axes = plt.subplots(2, 3, figsize=(7.2, 4.4), sharex=True, sharey=True)
     for i, delta in enumerate((0.3, 0.5)):
         for j, n_min in enumerate((25, 100, 500)):
             ax = axes[i, j]
             for p in sorted(agg.p.unique(), reverse=True):
                 for icpt, ls in (("prior", "-"), ("auto", "--")):
-                    s = agg[(agg.delta == delta) & (agg.n_min == n_min) & (agg.p == p)
-                            & (agg.intercept == icpt)]
+                    s = agg[
+                        (agg.delta == delta)
+                        & (agg.n_min == n_min)
+                        & (agg.p == p)
+                        & (agg.intercept == icpt)
+                    ]
                     if len(s):
                         col, mk = P_STYLE[p]
-                        ax.plot(s.rounds, s.fnr_all, ls, marker=mk, ms=2.5, color=col,
-                                label=f"$p$ = {p}")
+                        ax.plot(
+                            s.rounds,
+                            s.fnr_all,
+                            ls,
+                            marker=mk,
+                            ms=2.5,
+                            color=col,
+                            label=f"$p$ = {p}",
+                        )
             ax.set(xscale="log", title=f"$n_{{\\min}}$ = {n_min}, $\\delta$ = {delta}")
             if i == 1:
                 ax.set_xlabel("boosting rounds used")
@@ -340,25 +453,38 @@ def figA3_rounds():
 def figA4_mechanism():
     d = pd.read_csv(RESULTS / "e2_sweep.csv.gz")
     tg = d[(d.importance == "total_gain") & (d.intercept == "prior")]
-    a2 = tg.groupby(["p", "n_min", "delta"]).agg(
-        real=("raw_real_mean", "mean"), noise=("raw_noise_max", "mean")).reset_index()
+    a2 = (
+        tg.groupby(["p", "n_min", "delta"])
+        .agg(real=("raw_real_mean", "mean"), noise=("raw_noise_max", "mean"))
+        .reset_index()
+    )
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.7))
     for delta, (col, mk) in DELTA_STYLE.items():
         s = a2[a2.delta == delta].sort_values("n_min")
-        axes[0].scatter(s.n_min, s.real / s.noise, color=col, marker=mk, s=12,
-                        label=f"$\\delta$ = {delta}")
+        axes[0].scatter(
+            s.n_min, s.real / s.noise, color=col, marker=mk, s=12, label=f"$\\delta$ = {delta}"
+        )
     axes[0].axhline(1, color=OI["grey"], lw=0.8)
-    axes[0].set(xscale="log", yscale="log", xlabel="$n_{\\min}$",
-                ylabel="mean relevant / max null total gain",
-                title="(a) advantage of relevant features")
+    axes[0].set(
+        xscale="log",
+        yscale="log",
+        xlabel="$n_{\\min}$",
+        ylabel="mean relevant / max null total gain",
+        title="(a) advantage of relevant features",
+    )
     axes[0].legend(fontsize=6.5)
     ctrl = a2[a2.delta == 0].sort_values("n_min")
     for p in sorted(ctrl.p.unique(), reverse=True):
         s = ctrl[ctrl.p == p]
         col, mk = P_STYLE[p]
         axes[1].scatter(s.n_min, s.noise / s.n_min, color=col, marker=mk, s=12, label=f"$p$ = {p}")
-    axes[1].set(xscale="log", yscale="log", xlabel="$n_{\\min}$",
-                ylabel="max null total gain / $n_{\\min}$", title="(b) pure-noise control ($\\delta$ = 0)")
+    axes[1].set(
+        xscale="log",
+        yscale="log",
+        xlabel="$n_{\\min}$",
+        ylabel="max null total gain / $n_{\\min}$",
+        title="(b) pure-noise control ($\\delta$ = 0)",
+    )
     axes[1].legend(fontsize=6, ncol=2)
     fig.tight_layout()
     save(fig, "figA4_mechanism")
@@ -383,8 +509,17 @@ def figA7_backends():
         for b, (lab, col, mk) in BACKEND_STYLE.items():
             s = agg[(agg.backend == b) & (agg.p == p)].sort_values("n_min")
             if len(s):
-                ax.errorbar(s.n_min, s["mean"], yerr=2 * s["se"], marker=mk, ms=3, color=col,
-                            lw=0.9, elinewidth=0.6, label=lab)
+                ax.errorbar(
+                    s.n_min,
+                    s["mean"],
+                    yerr=2 * s["se"],
+                    marker=mk,
+                    ms=3,
+                    color=col,
+                    lw=0.9,
+                    elinewidth=0.6,
+                    label=lab,
+                )
         ax.set(xscale="log", xlabel="$n_{\\min}$", title=f"$p$ = {p}, $\\delta$ = 0.5")
     axes[0].set_ylabel("FNR (max-shadow rule)")
     fig.tight_layout()
@@ -398,13 +533,29 @@ def figA5_shadows():
     k = "n_noise" if "n_noise" in e8 else "n_shadows"
     agg = e8.groupby([k, "n_min"])[col].agg(["mean", se]).reset_index()
     fig, ax = plt.subplots(figsize=(3.6, 2.7))
-    for kk, (c, mk) in zip(sorted(agg[k].unique()), ((OI["blue"], "o"), (OI["orange"], "s"),
-                                                      (OI["vermillion"], "^")), strict=False):
+    for kk, (c, mk) in zip(
+        sorted(agg[k].unique()),
+        ((OI["blue"], "o"), (OI["orange"], "s"), (OI["vermillion"], "^")),
+        strict=False,
+    ):
         s = agg[agg[k] == kk].sort_values("n_min")
-        ax.errorbar(s.n_min, s["mean"], yerr=2 * s["se"], marker=mk, ms=3, color=c, lw=0.9,
-                    elinewidth=0.6, label=f"$K$ = {kk}")
-    ax.set(xscale="log", xlabel="$n_{\\min}$", ylabel="FNR (max-shadow rule)",
-           title="number of shadows, $\\delta$ = 0.5, $p$ = 0.1")
+        ax.errorbar(
+            s.n_min,
+            s["mean"],
+            yerr=2 * s["se"],
+            marker=mk,
+            ms=3,
+            color=c,
+            lw=0.9,
+            elinewidth=0.6,
+            label=f"$K$ = {kk}",
+        )
+    ax.set(
+        xscale="log",
+        xlabel="$n_{\\min}$",
+        ylabel="FNR (max-shadow rule)",
+        title="number of shadows, $\\delta$ = 0.5, $p$ = 0.1",
+    )
     ax.legend()
     fig.tight_layout()
     save(fig, "figA5_shadows")
@@ -454,16 +605,29 @@ def load_methods():
     d = pd.concat(frames, ignore_index=True)
     # E6 and E4b both contain the Mann-Whitney rules on identical data; keep E4b's
     if "e4b_baselines" in set(d.source):
-        d = d[~((d.source == "e6_univariate") & d.method.isin(set(d[d.source == "e4b_baselines"].method)))]
+        d = d[
+            ~(
+                (d.source == "e6_univariate")
+                & d.method.isin(set(d[d.source == "e4b_baselines"].method))
+            )
+        ]
     d = d[d.method != "naive"]  # identical to E4b's oneshot_gain (same fit)
     return d
 
 
 def method_summary(d):
     """Per method and n_min: mean FNR and FPR (over p and repeats) and their SEs."""
-    g = d.groupby(["method", "n_min"]).agg(
-        fnr=("fnr", "mean"), fnr_se=("fnr", se), fpr=("fpr", "mean"), fpr_se=("fpr", se),
-        n=("fnr", "size")).reset_index()
+    g = (
+        d.groupby(["method", "n_min"])
+        .agg(
+            fnr=("fnr", "mean"),
+            fnr_se=("fnr", se),
+            fpr=("fpr", "mean"),
+            fpr_se=("fpr", se),
+            n=("fnr", "size"),
+        )
+        .reset_index()
+    )
     return g
 
 
@@ -494,18 +658,37 @@ def figA6_methods():
             if not len(s):
                 continue
             for i, (y, e) in enumerate((("fnr", "fnr_se"), ("fpr", "fpr_se"))):
-                axes[i, j].errorbar(s.n_min, s[y], yerr=2 * s[e], ls=ls, marker=mk, ms=3,
-                                    color=col, lw=1, elinewidth=0.6,
-                                    mfc=col if ls == "-" else "white",
-                                    label=METHOD_LABELS[m] if i == 0 else None)
+                axes[i, j].errorbar(
+                    s.n_min,
+                    s[y],
+                    yerr=2 * s[e],
+                    ls=ls,
+                    marker=mk,
+                    ms=3,
+                    color=col,
+                    lw=1,
+                    elinewidth=0.6,
+                    mfc=col if ls == "-" else "white",
+                    label=METHOD_LABELS[m] if i == 0 else None,
+                )
         axes[0, j].set(title=f"({'ab'[j]}) {title}", ylim=(-0.03, 1.0))
-        axes[1, j].set(xscale="log", xlabel="$n_{\\min}$ ($\\delta$ = 0.5, so $s = n_{\\min}/4$)",
-                       ylim=(-0.01, 0.35))
+        axes[1, j].set(
+            xscale="log",
+            xlabel="$n_{\\min}$ ($\\delta$ = 0.5, so $s = n_{\\min}/4$)",
+            ylim=(-0.01, 0.35),
+        )
         axes[1, j].axhline(1 / 11, color=OI["grey"], ls="--", lw=0.8)
         axes[1, j].text(11, 1 / 11 + 0.008, "1/(K+1) = 1/11", fontsize=6.5, color=OI["grey"])
         h, lab = axes[0, j].get_legend_handles_labels()
-        axes[1, j].legend(h, lab, loc="upper center", bbox_to_anchor=(0.5, -0.3), fontsize=6.5,
-                          ncol=1, frameon=False)
+        axes[1, j].legend(
+            h,
+            lab,
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.3),
+            fontsize=6.5,
+            ncol=1,
+            frameon=False,
+        )
     axes[0, 0].set_ylabel("FNR (relevant dropped)")
     axes[1, 0].set_ylabel("FPR (irrelevant kept)")
     for ax in axes[0]:
@@ -515,21 +698,63 @@ def figA6_methods():
 
 
 TABLE2_ROWS = [
-    ("One fit, max-shadow rule ($K = 10$)", [
-        "oneshot_gain", "oneshot_total_gain", "oneshot_shap", "mwu_shadow_max",
-        "class_weight", "downsample", "early_stop", "p90"]),
-    ("Repeated rounds (20 fits) and Boruta", [
-        "boruta_gain", "boruta_gain_strict", "boruta_perm", "boruta_perm_strict",
-        "borutapy", "borutapy_strict", "borutapy_balanced", "borutapy_balanced_strict"]),
-    ("Without shadows", [
-        "oof_perm_pos", "oof_perm_2se", "knockoff_plus", "knockoff", "l1_cv", "stability",
-        "mwu_bh_0.1", "mwu_bh_0.2"]),
+    (
+        "One fit, max-shadow rule ($K = 10$)",
+        [
+            "oneshot_gain",
+            "oneshot_total_gain",
+            "oneshot_shap",
+            "mwu_shadow_max",
+            "class_weight",
+            "downsample",
+            "early_stop",
+            "p90",
+        ],
+    ),
+    (
+        "Repeated rounds (20 fits) and Boruta",
+        [
+            "boruta_gain",
+            "boruta_gain_strict",
+            "boruta_perm",
+            "boruta_perm_strict",
+            "borutapy",
+            "borutapy_strict",
+            "borutapy_balanced",
+            "borutapy_balanced_strict",
+        ],
+    ),
+    (
+        "Without shadows",
+        [
+            "oof_perm_pos",
+            "oof_perm_2se",
+            "knockoff_plus",
+            "knockoff",
+            "l1_cv",
+            "stability",
+            "mwu_bh_0.1",
+            "mwu_bh_0.2",
+        ],
+    ),
 ]
 
 
-TABLE2_MAIN = {"oneshot_gain", "oneshot_shap", "mwu_shadow_max", "class_weight",
-               "boruta_gain", "boruta_gain_strict", "borutapy", "borutapy_balanced",
-               "oof_perm_2se", "knockoff_plus", "l1_cv", "mwu_bh_0.1", "mwu_bh_0.2"}
+TABLE2_MAIN = {
+    "oneshot_gain",
+    "oneshot_shap",
+    "mwu_shadow_max",
+    "class_weight",
+    "boruta_gain",
+    "boruta_gain_strict",
+    "borutapy",
+    "borutapy_balanced",
+    "oof_perm_2se",
+    "knockoff_plus",
+    "l1_cv",
+    "mwu_bh_0.1",
+    "mwu_bh_0.2",
+}
 
 
 def table_methods():
@@ -618,12 +843,15 @@ def table_robustness(n_min=100):
     write_tex("table_robustness", "\n".join(lines) + "\n")
 
 
-REAL_METHODS = [("oneshot_gain", "max rule, gain"), ("oneshot_shap", "max rule, TreeSHAP"),
-                ("oof_perm_2se", "out-of-fold permutation"),
-                ("boruta_gain_strict", "Boruta rounds, accepted only"),
-                ("boruta_gain", "Boruta rounds, keep tentative"),
-                ("borutapy_balanced", "BorutaPy, balanced forest"),
-                ("mwu_bh_0.1", "Mann--Whitney, BH $q = 0.1$")]
+REAL_METHODS = [
+    ("oneshot_gain", "max rule, gain"),
+    ("oneshot_shap", "max rule, TreeSHAP"),
+    ("oof_perm_2se", "out-of-fold permutation"),
+    ("boruta_gain_strict", "Boruta rounds, accepted only"),
+    ("boruta_gain", "Boruta rounds, keep tentative"),
+    ("borutapy_balanced", "BorutaPy, balanced forest"),
+    ("mwu_bh_0.1", "Mann--Whitney, BH $q = 0.1$"),
+]
 
 
 def table_realdata():
@@ -651,9 +879,23 @@ def table_realdata():
 if __name__ == "__main__":
     import sys
 
-    jobs = [fig1_first_split, figA2_intercept_toll, fig2_scaling, figA1_fnr_vs_nmin, table_e2, table_sbands,
-            figA3_rounds, figA4_mechanism, figA7_backends, figA5_shadows,
-            figA6_methods, table_methods, table_wide, table_robustness, table_realdata]
+    jobs = [
+        fig1_first_split,
+        figA2_intercept_toll,
+        fig2_scaling,
+        figA1_fnr_vs_nmin,
+        table_e2,
+        table_sbands,
+        figA3_rounds,
+        figA4_mechanism,
+        figA7_backends,
+        figA5_shadows,
+        figA6_methods,
+        table_methods,
+        table_wide,
+        table_robustness,
+        table_realdata,
+    ]
     only = set(sys.argv[1:])
     for f in jobs:
         if only and f.__name__ not in only:

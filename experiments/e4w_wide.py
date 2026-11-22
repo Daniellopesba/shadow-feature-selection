@@ -13,7 +13,6 @@ import argparse
 import warnings
 
 import methods as M
-import numpy as np
 from common import run_grid
 from scipy import stats
 

@@ -164,8 +164,15 @@ def scenarios(quick):
         for n_min, p in itertools.product((25, 50, 100, 250), (0.1, 0.02)):
             n_neg = int(round(n_min * (1 - p) / p))
             if n_min <= n_pos_pool and n_neg <= n_neg_pool:
-                out.append(dict(dataset=name, n_min=n_min, p=p, n=n_min + n_neg,
-                                n_repeats=1 if quick else 10))
+                out.append(
+                    dict(
+                        dataset=name,
+                        n_min=n_min,
+                        p=p,
+                        n=n_min + n_neg,
+                        n_repeats=1 if quick else 10,
+                    )
+                )
     return out
 
 

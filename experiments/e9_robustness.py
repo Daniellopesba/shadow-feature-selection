@@ -1,4 +1,4 @@
-"""E9: departures from the Gaussian location-shift model (paper: departures from the Gaussian model).
+"""E9: robustness study (paper: departures from the Gaussian model).
 
 Eight data-generating processes (``dgp.py``): the Gaussian baseline,
 correlated relevant columns, proxies of relevant columns, heavy-tailed (t3)

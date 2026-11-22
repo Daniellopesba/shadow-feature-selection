@@ -1,11 +1,11 @@
-"""E10: the level of the shadow rule with discrete features (paper Section 3.6).
+"""E10: the level of the shadow rule with discrete features (paper, level of the shadow rule).
 
-Proposition 6 assumes continuous columns (no ties). Here one candidate is an
+The level result assumes continuous columns (no ties). Here one candidate is an
 irrelevant *binary* column among continuous candidates, or an irrelevant
 continuous column among binary candidates, and we measure how often it beats
 every shadow. Two shadow constructions: Boruta's (one permuted copy of each
 candidate) and per-feature shadows (all K shadows are permutations of the
-column under test), for which Proposition 6 holds without (A1) and (A3).
+column under test), for which the level result holds without (A1) and (A3).
 XGBoost (hist, 50 trees, depth 3, prevalence intercept), n = 1000, p = 0.1,
 6 candidates (2 relevant at delta = 0.5), K = 6 shadows, column order shuffled
 before every fit; mean gain, total gain and TreeSHAP importances.

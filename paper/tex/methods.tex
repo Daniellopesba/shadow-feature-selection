@@ -37,4 +37,22 @@ What the comparison shows:
 
 \subsection{Departures from the Gaussian model}\label{sec:robustness}
 
+E9 changes one aspect of the model at a time, at $\phat = 0.05$ and $\delta = 0.5$ ($K = 10$, 15 repeats per cell): correlated relevant features ($\rho = 0.6$), proxies strongly correlated with the relevant features ($\rho = 0.9$; the table reports the original relevant features), heavy tails ($t_3$), skew (log-normal), a mix of binary and continuous features, a signal in the spread only (standard deviation 1.6 among positives), and a signal in an interaction only (two pairs whose correlation is 0.6 among positives and 0 among negatives). \Cref{tab:robustness} shows the error rates at $\nmin = 100$.
+
+\begin{table}[t]
+\centering\small
+\caption{Departures from the Gaussian model (E9, $\nmin = 100$, $\phat = 0.05$, $\delta = 0.5$, $K = 10$): FNR / FPR. For the interaction model the FNR is over the four interacting columns.}\label{tab:robustness}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+ & \multicolumn{2}{c}{max rule} & Boruta rounds & out-of-fold & Mann--Whitney\\
+Model & gain & TreeSHAP & keep tentative & permutation & BH $q = 0.1$\\
+\midrule
+\csname @@input\endcsname generated/table_robustness
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three findings matter in practice. First, \emph{correlation among relevant features hurts every tree importance badly}: with $\rho = 0.6$ the one-shot gain rule drops 0.65 of the relevant features at $\nmin = 100$, against 0.09 without correlation, because correlated features share the splits and each one's importance falls. The rank test, which looks at each feature on its own, drops none, and its keep rate matches the $\sauc$ prediction of \cref{prop:mw} in every informative cell for correlated, heavy-tailed and skewed features (P14). Second, \emph{the rank test is blind to signals that do not shift the distribution}: it drops 0.99 of the scale-only features and 0.98 of the interacting ones, which the trees find in part (out-of-fold permutation drops only 0.05 of the interacting columns). Third, \emph{heavy tails and skew make detection easier for all methods} at the same standardised $\delta$, because $\sauc$ is larger than $s$ there. Irrelevant candidates are kept at about the nominal level throughout, except by Boruta-style rounds with tentative features kept, as \cref{prop:rounds} explains.
+
 \subsection{Real data}\label{sec:realdata}

@@ -1,4 +1,4 @@
-"""E2: the main sweep (paper Section 4.1-4.3).
+"""E2: the main sweep (paper: the full ensemble).
 
 Single-shot shadow rule on XGBoost training-set importance across a
 credit-risk regime (A) and a fraud regime (B) that overlap in n_min, with

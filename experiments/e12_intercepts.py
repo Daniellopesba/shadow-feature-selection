@@ -1,4 +1,4 @@
-"""E12: XGBoost's default intercept by version (paper Section 3.1).
+"""E12: XGBoost's default intercept by version (paper: Table 1).
 
 Fits a one-tree model at three prevalences and records the learned
 base_score. Run once per installed XGBoost version; appends to

@@ -1,4 +1,4 @@
-"""Data-generating processes for the robustness study (E9, paper Section 6).
+"""Data-generating processes for the robustness study (E9, paper: departures from the Gaussian model).
 
 Every generator returns ``X, y, roles`` with exactly ``n_min = round(n p)``
 positives. ``roles`` labels each column:
@@ -9,7 +9,7 @@ positives. ``roles`` labels each column:
            conditionally independent of y given the relevant columns
   "null"   independent of y and of every other column
 
-The baseline is the Gaussian location-shift model of Section 2.1 with 5
+The baseline is the Gaussian location-shift model of the paper's setup with 5
 relevant and 5 null columns.
 """
 

@@ -1,4 +1,4 @@
-"""E5: is the effect specific to XGBoost? (paper Section 4.5)
+"""E5: is the effect specific to XGBoost? (paper: appendix, other learners)
 
 Single-shot max-shadow rule (E2 design, delta = 0.5) with other learners'
 native training-set importances:

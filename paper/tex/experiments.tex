@@ -40,4 +40,6 @@ E2 fits 300-tree ensembles with five relevant and five null features and applies
 
 \subsection{The level of the shadow rule}\label{sec:exp-level}
 
-% LEVEL_TEXT
+\paragraph{Continuous columns (P9).} In E4 every one-shot rule compares each irrelevant candidate with the largest of $K = 10$ shadows, so \cref{prop:level} bounds its false positive rate by $1/11 = 0.091$ at every $\nmin$ and $\phat$. The measured rates are 0.075--0.091 for all eight one-shot rules (mean gain \numPnineoneshotgain, total gain \numPnineoneshottotalgain, TreeSHAP \numPnineoneshotshap, the rank statistic \numPninemwushadowmax), slightly below the bound because ties at zero importance count as losses.
+
+\paragraph{Discrete columns (P10).} E10 tests the case \cref{prop:level} excludes: a null binary column among continuous candidates, and a null continuous column among binary ones (50 trees, $K = 6$, 2{,}000 repeats each). With Boruta's shadows, one permuted copy of each candidate, the level fails in both directions: the continuous null among binary candidates beats every shadow in \numPtenborutacontinuousnullamongbinarytotalgain{} of runs under total gain and \numPtenborutacontinuousnullamongbinaryshap{} under TreeSHAP, against a bound of $1/7 = 0.143$, while the binary null among continuous candidates almost never wins under those importances (\numPtenborutabinarynulltotalgain{} and \numPtenborutabinarynullshap). With per-feature shadows every case is within the bound for all three importances (largest 0.156), as \cref{prop:level} states.

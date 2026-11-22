@@ -1,4 +1,4 @@
-"""E4w: a wide table, and the number of shadows Boruta uses (paper Section 5).
+"""E4w: a wide table, and the number of shadows Boruta uses (paper: selection methods).
 
 100 candidates (5 relevant at delta = 0.5, 95 irrelevant), p = 0.05,
 n_min in {25, 50, 100, 250}. Compares K = 10 shadows with Boruta's default of

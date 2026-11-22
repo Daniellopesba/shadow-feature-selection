@@ -22,15 +22,15 @@ P8 & \raggedright \cref{conj:ensemble} (b): difference $\ge$ -2 SE in every info
 \addlinespace
 P9 & \raggedright \cref{prop:level}: measured $\le$ 1/(K+1) + 2 SE (data-set-clustered SE), for each method & \raggedright FPR (SE) against 1/11 = 0.091: naive auto 0.081 (0.009); class weight 0.089 (0.010); downsample 0.075 (0.009); early stop 0.088 (0.010); oneshot gain 0.083 (0.009); oneshot total gain 0.076 (0.008); oneshot shap 0.091 (0.010); mwu shadow max 0.078 (0.009) & agrees & 1 \\
 \addlinespace
-P10 & \raggedright \cref{prop:level} (per-feature shadows): measured $\le$ 1/(K+1) + 2 SE in every case and importance type & \raggedright per-feature shadows: 9 of 9 case/importance pairs within the bound 1/7 = 0.143 + 2 SE; largest 0.200 (binary null, total gain). Boruta shadows, for comparison: largest 0.480 (continuous null among binary, shap) (quick run) & agrees (quick run) & 1 \\
+P10 & \raggedright \cref{prop:level} (per-feature shadows): measured $\le$ 1/(K+1) + 2 SE in every case and importance type & \raggedright per-feature shadows: 9 of 9 case/importance pairs within the bound 1/7 = 0.143 + 2 SE; largest 0.155 (continuous, total gain). Boruta shadows, for comparison: largest 0.490 (continuous null among binary, total gain) & agrees & 1 \\
 \addlinespace
 P11 & \raggedright \cref{cor:shadows}: FNR(K') $\ge$ FNR(K) - 2 SE for K' > K in every informative cell & \raggedright 8 of 8 informative comparisons monotone within 2 SE; n\_min 50: K=5 0.37, K=50 0.84, K=200 1.00; n\_min 100: K=5 0.11, K=50 0.36, K=200 0.99; n\_min 250: K=5 0.00, K=50 0.00, K=200 0.56; n\_min 500: K=5 0.00, K=50 0.00, K=200 0.00 & agrees & 1 \\
 \addlinespace
 P12 & \raggedright \cref{prop:rounds}: measured $\le$ bound + 2 SE at every R; FPR at R = 60 $\le$ 4 E[theta\^{}2] + 2 SE & \raggedright R=10: keep 0.394 (SE 0.022), bound 0.909; R=20: keep 0.148 (SE 0.016), bound 0.455; R=40: keep 0.076 (SE 0.012), bound 0.303; R=60: keep 0.066 (SE 0.011), bound 0.273; at R=60: 4 E[theta\^{}2] = 0.100 (SE 0.014) & agrees & 1 \\
 \addlinespace
-P13 & \raggedright \cref{prop:mw}: within 0.05 + 2 SE in every informative cell & \raggedright 12 of 12 informative cells within 0.05 + 2 SE; largest deviation shadow max, n\_min 10, p 0.1: 0.71 vs 0.62 & agrees & 3.8e-05 \\
+P13 & \raggedright \cref{prop:mw}: within 0.05 + 2 SE in every informative cell & \raggedright 12 of 12 informative cells within 0.05 + 2 SE; largest deviation shadow max, n\_min 10, p 0.1: 0.71 vs 0.62 & agrees & 4.2e-05 \\
 \addlinespace
-P14 & \raggedright \cref{prop:mw} (non-Gaussian features): within 0.05 + 2 SE in every informative cell & \raggedright 3 of 6 informative cells within 0.05 + 2 SE (quick run); largest deviation t3, shadow max, n\_min 25: 0.60 vs 0.89 & disagrees (quick run) & 0 \\
+P14 & \raggedright \cref{prop:mw} (non-Gaussian features): within 0.05 + 2 SE in every informative cell & \raggedright 6 of 6 informative cells within 0.05 + 2 SE; largest deviation corr rel, bh 0.1, n\_min 25: 0.72 vs 0.61 & agrees & 1 \\
 \addlinespace
 P15 & \raggedright \cref{prop:accounting}: relative error $\le$ 1e-5 & \raggedright max relative error: telescoping 1.4e-07, Newton decrease 2.2e-16 (10 trees) & agrees & -- \\
 \addlinespace

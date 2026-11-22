@@ -1,4 +1,4 @@
-"""E3: where does the failure come from? (paper Section 4.4)
+"""E3: where does the failure come from? (paper: appendix, the XGBoost 2.x intercept)
 
 Fixes n_min and varies p (hence n), and reads importances after the first
 k boosting rounds of a single 300-round fit. Separates three effects:

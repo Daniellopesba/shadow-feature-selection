@@ -1,4 +1,4 @@
-"""E4c: BorutaPy, the Boruta implementation most Python users run (paper Section 5).
+"""E4c: BorutaPy, the Boruta implementation most Python users run (paper: selection methods).
 
 Same datasets and seeds as E4 (first 10 repeats; n_min <= 250). BorutaPy 0.4
 with iterative removal of rejected features and its two-step correction, on a

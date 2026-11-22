@@ -1,4 +1,4 @@
-"""E11: semi-synthetic benchmark on real tables (paper Section 6).
+"""E11: semi-synthetic benchmark on real tables (paper: real data).
 
 Five public tables from the Penn Machine Learning Benchmarks (PMLB): adult
 (income), churn (telecom churn), coil2000 (insurance purchase), magic

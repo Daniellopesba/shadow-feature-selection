@@ -178,7 +178,7 @@ def figA1_intercept_toll():
             ax.plot(s.n_min, s.outcome, ls, marker=mk, ms=3, color=col,
                     mfc=col if fill else "none")
     ax.set(xscale="log", xlabel="$n_{\\min}$", ylabel="P(first tree does not split)",
-           title="(b) the intercept toll (Prop. 2), hist")
+           title="(b) the intercept toll, hist")
     fig.tight_layout()
     legend_below(fig, axes, ncol=3)
     save(fig, "figA1_intercept_toll")
@@ -198,7 +198,7 @@ def e2_cells(d):
 
 
 def root_failure(n_min, delta, k):
-    """1 - E[F0(M)^K] in the limit of Theorem 1 (Corollary 1)."""
+    """1 - E[Q(M)^K]: root-split failure in the small-prevalence limit."""
     from shadowselect.theory import limit_max_gain
 
     null = np.sort(limit_max_gain(n_min, 0.0, n_rep=20000, seed=11, n_bins=256))

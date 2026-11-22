@@ -1,4 +1,4 @@
-"""E4b: further baselines on the E4 datasets (paper Section 5).
+"""E4b: further baselines on the E4 datasets (paper: selection methods).
 
 Same scenarios and seeds as E4 and E6, so every method sees identical data
 (5 relevant candidates at delta = 0.5, 5 irrelevant candidates, 10 permuted

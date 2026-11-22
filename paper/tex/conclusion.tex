@@ -1,0 +1,9 @@
+\section{Limitations}\label{sec:limitations}
+
+\paragraph{What is proved.} The limit theorems concern the first tree with exact search; histogram search rests on an unproved assumption about the quantile sketch, and \cref{thm:scaling} needs a fixed threshold window (\cref{conj:drift}). The level results hold for any rank-based learner but only for strong nulls. The power on a full ensemble is \cref{conj:ensemble}, supported cell by cell but not proved. \Cref{thm:limit} gives no rate.
+
+\paragraph{What the experiments cover.} The main sweeps use Gaussian location shifts with conditionally independent features; \cref{sec:robustness} departs from this in eight ways, and on the real tables of \cref{sec:realdata} only the appended null columns are known to be irrelevant. We study binary targets only. The residual effect of the prevalence at fixed $\nmin$ (\cref{sec:exp-ensemble}) has no quantitative account. Behaviour that depends on library defaults is specific to the versions we name.
+
+\section{Conclusion}\label{sec:conclusion}
+
+The shadow rule asks whether a feature does better than the best that noise can do. With a rare positive class, the evidence a feature can show is set by $s = \nmin\delta^2$ or its rank analogue $\sauc$, while the best that noise can do depends on $\nmin$ alone and grows slowly. Imbalance leaves the rule's level unchanged and removes its power. For the first tree this is proved; full ensembles fail at least as often. Much of the apparent imbalance effect in XGBoost~1.x and 2.x is the default intercept, which one argument fixes. When positives are few, a rank test uses the same information more efficiently than a tree split, at the price of missing signals only a model can see. Below about 25 positives no method we tested separates weak signal from noise reliably.

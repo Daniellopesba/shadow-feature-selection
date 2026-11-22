@@ -1,0 +1,63 @@
+% Shadow-feature selection under class imbalance.
+% Build with ./build.sh (paper.pdf: preprint; build/paper_anonymous.pdf: TMLR submission).
+\documentclass[10pt]{article}
+\ifdefined\anonymous
+  \usepackage{tmlr}
+\else
+  \usepackage[preprint]{tmlr}
+\fi
+
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[hidelinks]{hyperref}
+\usepackage{url}
+\usepackage[capitalise,noabbrev]{cleveref}
+\usepackage{siunitx}
+\sisetup{group-separator={,},group-minimum-digits=4}
+
+\graphicspath{{../figures/}}
+
+\input{tex/macros}
+
+\title{Shadow-Feature Selection Under Class Imbalance:\\ How the Minority Count Limits What Can Be Found}
+
+\author{\name Daniel Lopes}
+
+\def\month{MM}
+\def\year{YYYY}
+\def\openreview{\url{https://openreview.net/forum?id=XXXX}}
+
+\begin{document}
+\maketitle
+
+\input{tex/abstract}
+\input{tex/introduction}
+\input{tex/setup}
+\input{tex/theory}
+\input{tex/experiments}
+\input{tex/methods}
+\input{tex/guidance}
+\input{tex/conclusion}
+
+\bibliography{references}
+\bibliographystyle{tmlr}
+
+\clearpage
+\appendix
+\setcounter{figure}{0}\renewcommand{\thefigure}{A\arabic{figure}}
+\setcounter{table}{0}\renewcommand{\thetable}{A\arabic{table}}
+\input{tex/appendix_proofs}
+\input{tex/appendix_theory}
+\input{tex/appendix_experiments}
+\input{tex/appendix_agreement}
+\input{tex/appendix_reproducibility}
+
+\end{document}

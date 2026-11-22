@@ -1,4 +1,4 @@
-"""E1: first-split theory checks (paper Section 3).
+"""E1: first-split theory checks (paper: the first split).
 
 (a) Null maximum of 2*Gain over thresholds for one uninformative feature, as a
     function of n_min at several n (Monte Carlo, XGBoost defaults lam=1,

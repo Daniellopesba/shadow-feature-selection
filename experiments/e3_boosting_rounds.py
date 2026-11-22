@@ -1,4 +1,4 @@
-"""E3: where does the failure come from? (paper Section 4.4)
+"""E3: where does the failure come from? (paper: appendix, the XGBoost 2.x intercept)
 
 Fixes n_min and varies p (hence n), and reads importances after the first
 k boosting rounds of a single 300-round fit. Separates three effects:
@@ -71,4 +71,6 @@ def worker(s, r, seed):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true", help="tiny profile; writes *_quick files")
-    run_grid("e3_boosting_rounds", scenarios(ap.parse_args().quick), worker)
+    run_grid(
+        "e3_boosting_rounds", scenarios(ap.parse_args().quick), worker, seed_exclude=("intercept",)
+    )

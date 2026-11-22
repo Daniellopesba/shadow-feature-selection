@@ -1,0 +1,41 @@
+\section{Experiments: testing the theory}\label{sec:experiments}
+
+Each testable statement of \cref{sec:theory} was paired, before any comparison was computed, with a statistic, a prediction and a rule that turns the two into a verdict; \cref{tab:agreement} in \cref{app:agreement} lists all fifteen, and all agree. Every repeat draws a new data set from a seed hashed from its parameters, so every number is reproducible bit for bit (\cref{app:reproducibility}); arms that differ only in the learner's settings share data sets. Standard errors are clustered by data set and error bars show two of them. \Cref{tab:experiments} in \cref{app:experiments} summarises the designs.
+
+\subsection{The first split}\label{sec:exp-first}
+
+\paragraph{The gain is Pearson's chi-square, and the null law depends on $\nmin$ (P1--P3).} With $\lambda = 0$, exact search and the prevalence intercept, the root gain reported by XGBoost matches $X^2$ to a relative error of \numPoneErr, which is float32 precision. Under XGBoost's default regularisation, the median of a null feature's best split varies by at most \numPthreeSpread\% across $n = 10^3$ to $10^5$ at every $\nmin$ (\cref{fig:first}a), while it grows only slowly with $\nmin$. Without regularisation it grows with $n$, as \cref{thm:limit} predicts.
+
+\paragraph{The limit predicts XGBoost's root decision (P4, P5).} \Cref{fig:first}b shows how often a depth-1 tree chooses the one informative feature over nine null ones, with the column order shuffled before every fit so that ties are broken at random. The curves are the limit \eqref{eq:limit}, computed by Monte Carlo without fitting anything. Over the \numPfourCells{} informative cells with the prevalence intercept and exact search, the mean absolute difference between prediction and measurement is \numPfourMAE{} and the goodness-of-fit test gives $p = \numPfourP$, consistent with the limit being exact at $\phat$ up to 0.1 and $n$ down to 250; histogram search agrees as closely (\numPfourMAEhist, \cref{cor:hist}). At fixed $s$, the prevalence has no detectable effect on the root decision: a logistic regression of the per-run outcome on a spline of $\log s$ and on $\log_{10}\phat$ estimates a change of \numPfiveAME{} in the win probability per decade of $\phat$ (95\% interval \numPfiveLo{} to \numPfiveHi).
+
+\paragraph{The intercept toll (P6).} Under the XGBoost~2.x default at $\phat = 0.001$, $\nmin = 50$, $\delta = 0.5$, the first tree made no split in \numPsixNoSplitZeroZeroOne{} of runs, and \eqref{eq:toll} predicts whether it splits in \numPsixAgree\% of them (\cref{app:intercept-arm}).
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{fig1_first_split}
+\caption{The first split against \cref{thm:limit}. (a) Median best split of a null feature, by $n$. With XGBoost's regularisation it depends on $\nmin$ and not on $n$; without it, it grows with $n$. (b) Probability that the root uses the informative feature rather than one of nine null features (exact search, prevalence intercept), against $s = \nmin\delta^2$; error bars are two binomial standard errors. Black: the limit \eqref{eq:limit}, without fitted parameters. Dotted: chance, 1/10.}\label{fig:first}
+\end{figure}
+
+\subsection{The full ensemble}\label{sec:exp-ensemble}
+
+E2 fits 300-tree ensembles with five relevant and five null features and applies the one-shot rule with the null features as the $K = 5$ shadows. \Cref{fig:scaling}a plots the false negative rate of each cell against $s$, and \cref{tab:e2} in \cref{app:experiments} groups the cells by $\nmin$.
+
+\paragraph{The root-split theory is a lower bound (P7).} \Cref{conj:ensemble}(a) predicts that an ensemble loses a relevant feature at least as often as the root split of \cref{cor:shadows} does. In all \numPsevenPass{} of \numPsevenCells{} informative cells the measured rate is at or above the prediction, by a median of \numPsevenExcess. \emph{Heuristic:} later trees fit noise in the positives, and every null column gets a share of that gain.
+
+\paragraph{$s$ organises the ensemble, with a small residual effect of the prevalence (P8).} The false negative rate falls from 0.6--0.85 for $s < 5$ to at most 0.03 for $s \ge 60$ (\cref{tab:sbands} in \cref{sec:guidance}), whatever the prevalence. At fixed $\nmin$ and $\delta$ the prevalence still matters at weak signal (\cref{fig:scaling}b): at $\nmin = 200$ and $\delta = 0.5$ the rate is 0.10 at $\phat = 0.001$ and 0.02 at $\phat = 0.2$. Every one of the \numPeightPairs{} informative pairs of adjacent prevalences goes in the direction \cref{conj:ensemble}(b) states, or is within two standard errors of it, and the precision-weighted mean increase per step to a smaller prevalence is \numPeightPooled{} (standard error \numPeightPooledSE). We have no quantitative account of this residual; one plausible source is that the initial loss, about $\nmin(1 + \ln(1/\phat))$ nats, grows as $\phat$ falls, leaving more to memorise (\cref{prop:accounting}).
+
+\paragraph{The intercept accounts for most of the prevalence effect in XGBoost~2.x.} On the same data sets, the XGBoost~2.x default intercept raises the false negative rate by \numGapMeanSmall{} on average at $\phat \le 0.01$ and by \numGapMeanLarge{} at $\phat \ge 0.05$; the largest effect is at $\nmin = \numGapTopNmin$, $\phat = \numGapTopP$, $\delta = \numGapTopDelta$, with \numGapTopAuto{} against \numGapTopPrior{} (\cref{app:intercept-arm}). XGBoost~3.1 with its default settings, which use the prevalence intercept, reproduces the prevalence arm of XGBoost~2.1 exactly: every importance in all \numXgbThreeCells{} cells is identical.
+
+\paragraph{More shadows raise the bar (P11).} With $K = 5$, 50 and 200 null columns (E8, $\delta = 0.5$, $\phat = 0.1$), the false negative rate at $\nmin = 100$ ($s = 25$) is 0.11, 0.36 and 0.99, and it never decreases with $K$ beyond two standard errors (\cref{fig:shadows} in \cref{app:experiments}).
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{fig2_scaling}
+\caption{The full ensemble (E2: 300 trees, prevalence intercept, $K = 5$). (a) False negative rate of the one-shot rule against $s = \nmin\delta^2$, one point per cell; the curve is the root-split failure $1 - \E[Q(M)^K]$ of \cref{cor:shadows}, a lower bound by \cref{conj:ensemble}(a). (b) The residual effect of the prevalence at fixed $\nmin$. Error bars: two standard errors.}\label{fig:scaling}
+\end{figure}
+
+\subsection{The level of the shadow rule}\label{sec:exp-level}
+
+\paragraph{Continuous columns (P9).} In E4 (\cref{sec:methods}) \cref{prop:level} bounds every one-shot rule's false positive rate by $1/11 = 0.091$. The measured rates are 0.075--0.091 for all eight one-shot rules (mean gain \numPnineoneshotgain, total gain \numPnineoneshottotalgain, TreeSHAP \numPnineoneshotshap, the rank statistic \numPninemwushadowmax), slightly below the bound because ties at zero importance count as losses.
+
+\paragraph{Discrete columns (P10).} E10 tests the case \cref{prop:level} excludes: a null binary column among continuous candidates, and a null continuous column among binary ones (50 trees, $K = 6$, 2{,}000 repeats each). With Boruta's shadows, one permuted copy of each candidate, the level fails in both directions: the continuous null among binary candidates beats every shadow in \numPtenborutacontinuousnullamongbinarytotalgain{} of runs under total gain and \numPtenborutacontinuousnullamongbinaryshap{} under TreeSHAP, against a bound of $1/7 = 0.143$, while the binary null among continuous candidates almost never wins under those importances (\numPtenborutabinarynulltotalgain{} and \numPtenborutabinarynullshap). With per-feature shadows every case is within the bound for all three importances (largest 0.156), as \cref{prop:level} states.

@@ -1,10 +1,14 @@
-"""E5: is the effect specific to XGBoost? (paper Section 4.5)
+"""E5: is the effect specific to XGBoost? (paper: appendix, other learners)
 
 Single-shot max-shadow rule (E2 design, delta = 0.5) with other learners'
 native training-set importances:
   sklearn GradientBoostingClassifier (MSE-on-residuals splits, MDI),
-  RandomForestClassifier (Gini MDI; Boruta's learner),
+  RandomForestClassifier, fully grown (Gini MDI),
+  RandomForestClassifier, 100 trees of depth 5 (the setting BorutaPy's
+  documentation recommends), with and without balanced bootstrap weights,
   LightGBM (split gain).
+
+All learners see the same datasets (common random numbers).
 """
 
 from __future__ import annotations
@@ -27,6 +31,14 @@ def model(name, seed):
         )
     if name == "random_forest":
         return RandomForestClassifier(n_estimators=300, n_jobs=1, random_state=seed)
+    if name in ("rf_shallow", "rf_shallow_balanced"):
+        return RandomForestClassifier(
+            n_estimators=100,
+            max_depth=5,
+            n_jobs=1,
+            class_weight="balanced_subsample" if name.endswith("balanced") else None,
+            random_state=seed,
+        )
     if name in ("lightgbm", "lightgbm_default"):
         from lightgbm import LGBMClassifier
 
@@ -65,7 +77,14 @@ def worker(s, r, seed):
     return rows
 
 
-BACKENDS = ("sklearn_gbm", "random_forest", "lightgbm", "lightgbm_default")
+BACKENDS = (
+    "sklearn_gbm",
+    "random_forest",
+    "rf_shallow",
+    "rf_shallow_balanced",
+    "lightgbm",
+    "lightgbm_default",
+)
 
 
 def scenarios(quick):
@@ -81,7 +100,7 @@ def scenarios(quick):
                 delta=0.5,
                 n_real=5,
                 n_noise=5,
-                n_repeats=2 if quick else 15,
+                n_repeats=2 if quick else 20,
             )
         )
     return out
@@ -90,4 +109,4 @@ def scenarios(quick):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true", help="tiny profile; writes *_quick files")
-    run_grid("e5_backends", scenarios(ap.parse_args().quick), worker)
+    run_grid("e5_backends", scenarios(ap.parse_args().quick), worker, seed_exclude=("backend",))

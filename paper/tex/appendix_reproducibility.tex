@@ -1,0 +1,11 @@
+\section{Reproducibility}\label{app:reproducibility}
+
+The package, every experiment script, the per-repeat results and the scripts that turn them into the figures, tables and numbers of this paper are available at \repourl. Each experiment is one script in \code{experiments/} that writes a table with one row per data set (and method, where several are compared) to \code{results/}, together with the library versions and the commit it ran from. \code{experiments/make\_figures.py} produces every figure and table, and \code{experiments/paper\_numbers.py} evaluates the acceptance criteria of \cref{app:agreement} and writes every number quoted in the text; the paper's \LaTeX{} sources read their output, so no number is typed by hand.
+
+\paragraph{Seeds.} The seed of each data set is a hash of the scenario's parameters and the repeat index. Parameters that only change the learner, such as the intercept in E2 or the learner in E5, are left out of the hash, so both arms of such a comparison see the same data sets.
+
+\paragraph{Versions.} Python 3.13, NumPy 2.5.3, SciPy 1.18.1, pandas 3.0.5, scikit-learn 1.9.1, XGBoost 2.1.3, LightGBM 4.7.0, SHAP 0.54.1, Boruta (BorutaPy) 0.4.3 and PMLB 1.0.1. The XGBoost~3 arm of E2 uses XGBoost 3.1.3 with everything else unchanged, and the intercept measurements of \cref{tab:intercepts} use XGBoost 1.7.6, 2.1.3 and 3.1.3.
+
+\paragraph{Real data.} The five tables of \cref{sec:realdata} are read from the PMLB collection \citep{olson2017pmlb}; the script checks each file against a stored SHA-256 digest before use.
+
+\paragraph{Compute.} \numRunTime

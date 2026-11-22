@@ -1,0 +1,16 @@
+\multicolumn{7}{l}{\emph{One fit, max-shadow rule ($K = 10$)}} \\
+\quad max rule, gain & 0.83 / 0.04 & 0.66 / 0.07 & 0.33 / 0.07 & 0.12 / 0.09 & 0.01 / 0.12 & 1.41 \\
+\quad max rule, TreeSHAP & 0.80 / 0.11 & 0.67 / 0.06 & 0.26 / 0.08 & 0.10 / 0.09 & 0.00 / 0.12 & 1.41 \\
+\quad max rule, Mann–Whitney & 0.66 / 0.08 & 0.38 / 0.09 & 0.06 / 0.07 & 0.01 / 0.09 & 0.00 / 0.07 & 0.01 \\
+\quad max rule, class weights & 0.82 / 0.10 & 0.74 / 0.04 & 0.42 / 0.13 & 0.23 / 0.09 & 0.01 / 0.08 & -- \\
+\multicolumn{7}{l}{\emph{Repeated rounds (20 fits) and Boruta}} \\
+\quad Boruta rounds, gain, keep tentative & 0.63 / 0.14 & 0.38 / 0.17 & 0.07 / 0.15 & 0.03 / 0.18 & 0.00 / 0.15 & -- \\
+\quad Boruta rounds, gain, accepted only & 0.96 / 0.00 & 0.89 / 0.01 & 0.53 / 0.01 & 0.24 / 0.01 & 0.00 / 0.00 & -- \\
+\quad BorutaPy, keep tentative & 0.70 / 0.12 & 0.63 / 0.10 & 0.28 / 0.07 & 0.11 / 0.10 & 0.00 / 0.11 & 17 \\
+\quad BorutaPy, balanced forest, keep tentative & 0.59 / 0.12 & 0.36 / 0.07 & 0.08 / 0.06 & 0.03 / 0.05 & 0.00 / 0.07 & 16 \\
+\multicolumn{7}{l}{\emph{Without shadows}} \\
+\quad out-of-fold permutation, mean $-$ 2 SE $>0$ & 0.77 / 0.07 & 0.73 / 0.05 & 0.49 / 0.07 & 0.24 / 0.14 & 0.03 / 0.12 & 2.31 \\
+\quad model-X knockoffs+, $q$ = 0.2 & 0.88 / 0.04 & 0.86 / 0.06 & 0.70 / 0.12 & 0.38 / 0.21 & 0.11 / 0.17 & 0.32 \\
+\quad $\ell_1$-logistic, CV penalty & 0.46 / 0.27 & 0.05 / 0.60 & 0.00 / 0.67 & 0.00 / 0.80 & 0.00 / 0.78 & 0.24 \\
+\quad Mann–Whitney, BH $q$ = 0.1 & 0.78 / 0.02 & 0.45 / 0.04 & 0.05 / 0.05 & 0.01 / 0.04 & 0.00 / 0.04 & 0.01 \\
+\quad Mann–Whitney, BH $q$ = 0.2 & 0.66 / 0.06 & 0.24 / 0.15 & 0.04 / 0.09 & 0.00 / 0.16 & 0.00 / 0.10 & 0.01 \\

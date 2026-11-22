@@ -1,0 +1,124 @@
+\section{Further experiments}\label{app:experiments}
+
+\begin{table}[h]
+\centering\small
+\caption{Experiments. $K$ is the number of shadows; ``null features as shadows'' means that the strong-null columns of the data serve as the shadows, so only the false negative rate is defined.}\label{tab:experiments}
+\begin{tabular}{@{}lp{0.70\textwidth}r@{}}
+\toprule
+ & Design & Data sets\\
+\midrule
+E1 & One depth-1 tree; 1 informative and 9 null features; $\nmin$ 10--1000, $p\in\{0.001, 0.01, 0.1\}$, $\delta$ 0.1--1; both intercepts; exact and \code{hist}; 100 repeats & 34{,}000\\
+E2 & 300 trees; 5 relevant and 5 null features (null features as shadows, $K = 5$); $\nmin$ 10--2000, $p$ 0.001--0.2, $\delta\in\{0, 0.3, 0.5, 1\}$; both intercepts on the same data; also XGBoost 3.1 & \numEtwoFits\\
+E3 & As E2, importances after $k = 1,\dots,300$ rounds & \numEthreeFits\\
+E4 & 5 relevant and 5 irrelevant candidates, $K = 10$ method-built shadows, $\delta = 0.5$, $\nmin$ 10--500, $p\in\{0.01, 0.1\}$; 14 selection methods on the same data sets; 20 repeats & \numEfourFits\\
+E5 & As E2 at $\delta = 0.5$ with LightGBM, random forests and scikit-learn gradient boosting & \numEfiveFits\\
+E7 & E4 design, 60 Boruta rounds stored round by round & 6{,}000\\
+E8 & One-shot rule with $K = 5$, 50 or 200 null features & 180\\
+E9 & Eight departures from the Gaussian model (\cref{sec:robustness}) & \numEnineFits\\
+E10 & Level with discrete columns: Boruta's and per-feature shadows & \numEtenFits\\
+E11 & Five real tables with appended null columns (\cref{sec:realdata}) & \numEelevenFits\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The full ensemble by minority count}\label{app:e2}
+
+\begin{table}[h]
+\centering\small
+\caption{Mean false negative rate of the one-shot rule in E2 (300 trees, mean gain, $K = 5$), by minority count, effect size and intercept, on the same data sets for both intercepts. The last column is the number of $(\nmin, \phat)$ cells in each row.}\label{tab:e2}
+\begin{tabular}{lccccccc}
+\toprule
+ & \multicolumn{3}{c}{prevalence intercept} & \multicolumn{3}{c}{XGBoost 2.x default} & \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+$\nmin$ & $\delta = 0.3$ & 0.5 & 1 & 0.3 & 0.5 & 1 & cells\\
+\midrule
+\csname @@input\endcsname generated/table_e2
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figA1_fnr_vs_nmin}
+\caption{E2 by cell: false negative rate against $\nmin$, by prevalence, effect size and intercept. Error bars: two standard errors.}\label{fig:e2cells}
+\end{figure}
+
+\subsection{The XGBoost 2.x intercept}\label{app:intercept-arm}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figA2_intercept_toll}
+\caption{The intercept toll in the first tree (E1). (a) Root win probability under both intercepts (exact search): open markers, XGBoost~2.x default; filled, prevalence intercept. (b) Probability that the first tree makes no split at all (\code{hist}).}\label{fig:toll}
+\end{figure}
+
+E3 reads the importances after the first $k$ boosting rounds of the E2 ensembles (\cref{fig:rounds}; a round with no split anywhere counts as dropping every feature). With the prevalence intercept most of the failure is present from the first tree: averaged over cells, the false negative rate is 0.48 after one tree, 0.36 after 10 and 0.40 after 300, so later rounds add a small amount. Under the XGBoost~2.x default at $\phat = 0.001$ the first trees do not split at all, the rate is 1.00 after three rounds and 0.72 after 300, against 0.54 and 0.57 with the prevalence intercept: the toll of \cref{prop:toll} lasts for tens of rounds, as the heuristic after it says.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figA3_rounds}
+\caption{E3: false negative rate of the one-shot rule using the importances of the first $k$ rounds only. Solid: prevalence intercept; dashed: XGBoost~2.x default.}\label{fig:rounds}
+\end{figure}
+
+\subsection{Mechanism: gain of relevant and null features}\label{app:mechanism}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figA4_mechanism}
+\caption{E2, total gain. (a) Mean total gain of the relevant features divided by the largest null total gain. (b) Pure-noise control ($\delta = 0$): largest null total gain per positive, larger at small prevalence, as the gain accounting of \cref{prop:accounting} suggests.}\label{fig:mechanism}
+\end{figure}
+
+\subsection{Number of shadows}\label{app:shadows}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.55\textwidth]{figA5_shadows}
+\caption{E8: false negative rate of the one-shot rule with $K = 5$, 50 and 200 shadows ($\delta = 0.5$, $\phat = 0.1$). Error bars: two standard errors.}\label{fig:shadows}
+\end{figure}
+
+\subsection{Selection methods: all results}\label{app:methods-fig}
+
+\begin{table}[t]
+\centering\small
+\caption{All methods of E4: FNR / FPR by method and minority count ($\delta = 0.5$; 300-tree XGBoost unless stated; $K = 10$ shadows; 40 data sets per entry, standard errors at most 0.05 for FNR and 0.05 for FPR). The last column is the median wall time in seconds on one core at $\nmin = 100$; Boruta-style rounds cost about 20 one-shot fits.}\label{tab:methods-full}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lcccccr@{}}
+\toprule
+Method & $\nmin = 10$ & 25 & 50 & 100 & 250 & s\\
+\midrule
+\csname @@input\endcsname generated/table_methods_full 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figA6_methods}
+\caption{Both error rates by method ($\delta = 0.5$, the same 240 data sets for every method). Top: relevant candidates dropped; bottom: irrelevant candidates kept, with the level $1/(K+1)$ of the one-shot rules dashed. (a) One-shot max-shadow rules with three tree importances and with the Mann--Whitney statistic. (b) Other selectors. Error bars: two standard errors, clustered by data set.}\label{fig:methods}
+\end{figure}
+
+\subsection{Wide tables}\label{app:wide}
+
+\Cref{tab:wide} gives the full results of E4w (\cref{sec:widetables}): 10 repeats per cell; $K = 10$ shadows unless stated; Bonferroni or Benjamini--Hochberg over the per-candidate binomial tests.
+
+\begin{table}[t]
+\centering\small
+\caption{A wide table (E4w: 100 candidates, 5 relevant, $\delta = 0.5$, $\phat = 0.05$, 20 rounds where applicable, XGBoost mean gain): FNR / FPR.}\label{tab:wide}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Method & $\nmin = 25$ & 50 & 100 & 250\\
+\midrule
+\csname @@input\endcsname generated/table_wide
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Other learners}\label{app:backends}
+
+E5 repeats the E2 design at $\delta = 0.5$ with scikit-learn gradient boosting, random forests (full depth, depth 5, and depth 5 with class-balanced bootstrap samples) and LightGBM, each with its native importance (\cref{fig:backends}). At $\phat = 0.1$ every learner fails at small $\nmin$ much as XGBoost does (false negative rates 0.40--0.55 at $\nmin = 25$), as \cref{prop:level,cor:shadows} lead one to expect. Two differences stand out. LightGBM, which bounds children by sample count rather than by Hessian, keeps a residual effect of the prevalence at fixed $\nmin$: at $\nmin = 100$ its rate is 0.45--0.47 at $\phat = 0.01$ against 0.13--0.15 at $\phat = 0.1$; we have no account of this. And the depth-5 random forest with class-balanced bootstrap samples has the lowest rate of all learners at every $\nmin$ (0.07 and 0.16 at $\nmin = 50$, against 0.18--0.48 for the others). Its level is still $1/(K+1)$ by \cref{prop:level}, so this is a gain in power; class weights in XGBoost brought no such gain in E4.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figA7_backends}
+\caption{E5: false negative rate of the one-shot rule ($K = 5$) with other learners, at $\phat = 0.1$ and $0.01$. Error bars: two standard errors.}\label{fig:backends}
+\end{figure}

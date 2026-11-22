@@ -1,8 +1,8 @@
 {
   "experiment": "e2_sweep",
   "n_scenarios": 168,
-  "n_tasks": 3720,
-  "wall_seconds": 876.3,
+  "n_tasks": 6000,
+  "wall_seconds": 1061.0,
   "versions": {
     "python": "3.13.18",
     "numpy": "2.5.3",
@@ -10,6 +10,9 @@
     "pandas": "3.0.5",
     "sklearn": "1.9.1",
     "cpu_count": "4",
-    "xgboost": "2.1.3"
+    "xgboost": "2.1.3",
+    "lightgbm": "4.7.0",
+    "shap": "0.54.1",
+    "git_commit": "959e39d442b150997b76b2e641a8ac177b3962b1"
   }
 }

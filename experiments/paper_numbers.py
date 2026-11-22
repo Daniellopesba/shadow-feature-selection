@@ -1,49 +1,164 @@
-"""Recompute the numbers in the paper's Appendix A (theory against simulation).
+"""Evaluate the pre-stated acceptance criteria (``criteria.py``) against the results.
 
-Each row is a quantitative statement from Section 3, the measured value, and
-how well they agree. Run after the experiments:
+Every theory-versus-simulation comparison in the paper is computed here, from the
+files in ``results/`` and, for P1, P2, P6 and P15, from small direct computations.
+No verdict is written by hand: each row applies the rule recorded in
+``criteria.CRITERIA``. Run after the experiments:
 
-    python paper_numbers.py     # writes ../results/paper_numbers.md
+    python paper_numbers.py            # all rows
+    python paper_numbers.py P4 P13     # selected rows (the table keeps the others)
 
-P1, P2 and P6 are recomputed here directly (small, seconds); the rest read
-results/*.csv.gz.
+Outputs
+-------
+* ``paper/generated/table_agreement.tex``: the agreement table of Appendix D.
+* ``paper/generated/numbers.tex``: LaTeX macros for the numbers quoted in the text.
+* ``results/paper_numbers.json``: every row, machine readable.
+
+Conventions (see ``criteria.py``): standard errors are clustered by data set; a
+prediction that is itself simulated contributes its Monte Carlo variance; cells
+whose prediction and measurement are both below 0.02 or both above 0.98 are
+excluded as uninformative; each row reports a p-value for exact agreement,
+Bonferroni-combined over its cells, and the table gives Holm-adjusted values.
 """
 
 from __future__ import annotations
 
+import json
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from common import RESULTS
-from sklearn.isotonic import IsotonicRegression
+from criteria import CRITERIA
+from scipy import stats
 
-from shadowselect.simulation import make_dataset
-from shadowselect.theory import detection_probability, pearson_chi2_2x2, split_gains
+ROOT = Path(__file__).resolve().parents[1]
+GEN = ROOT / "paper" / "generated"
+JSON = RESULTS / "paper_numbers.json"
+LIMIT_REPS = 20_000
 
-OUT = RESULTS / "paper_numbers.md"
-LINES: list[str] = []
-
-
-def emit(pid, claim, measured, agreement):
-    LINES.append(f"| {pid} | {claim} | {measured} | {agreement} |")
-    print(pid, "|", measured, "|", agreement)
+ROWS: dict[str, dict] = {}
+MACROS: dict[str, str] = {}
 
 
-def iso_r2(x, y, increasing=False):
-    x = np.log(np.asarray(x, float))
-    y = np.asarray(y, float)
-    ok = np.isfinite(x) & np.isfinite(y)
-    fit = IsotonicRegression(increasing=increasing).fit(x[ok], y[ok]).predict(x[ok])
-    return 1 - np.mean((fit - y[ok]) ** 2) / np.var(y[ok])
+# ------------------------------------------------------------------ helpers
+def load(name, **kw):
+    p = RESULTS / name
+    if not p.exists():
+        return None
+    return pd.read_csv(p, low_memory=False, **kw)
 
 
-# ---------------------------------------------------------------- P1, P2
+def informative(pred, meas):
+    pred, meas = np.asarray(pred, float), np.asarray(meas, float)
+    return ~(((pred < 0.02) & (meas < 0.02)) | ((pred > 0.98) & (meas > 0.98)))
+
+
+def bonferroni_min(p):
+    p = np.asarray(p, float)
+    p = p[np.isfinite(p)]
+    return float(min(1.0, p.min() * len(p))) if len(p) else np.nan
+
+
+def cell_stats(d, by, col):
+    """Mean of ``col`` per cell and its SE, the data set being the unit."""
+    g = d.groupby(by)[col]
+    out = g.agg(["mean", "std", "count"]).reset_index()
+    out["se"] = out["std"].fillna(0) / np.sqrt(out["count"])
+    return out
+
+
+def row(pid, measured, verdict, pvalue=np.nan, **extra):
+    c = CRITERIA[pid]
+    ROWS[pid] = dict(
+        id=pid,
+        statement=c["statement"],
+        test=c["test"],
+        rule=c["rule"],
+        measured=measured,
+        verdict=verdict,
+        p=None if pvalue is None or not np.isfinite(pvalue) else float(pvalue),
+        **extra,
+    )
+    print(f"{pid}: {verdict} | p={pvalue} | {measured}")
+
+
+def macro(name, value, fmt="{:.2f}"):
+    MACROS[name] = fmt.format(value) if not isinstance(value, str) else value
+
+
+# ------------------------------------------------------- the limit object (4)
+def limit_sup(m, delta, reps, rng, lam=1.0, w=1.0, n_bins=None, chunk=2000):
+    """Draws of sup_u Gamma(u) of eq. (4) for a Gaussian feature with shift delta.
+
+    Exact search: the supremum of a piecewise-continuous process is attained at a
+    window end or as a one-sided limit at a jump, so it suffices to evaluate at
+    each placement from the left and from the right and at the window ends.
+    ``n_bins`` restricts u to the grid j / n_bins (histogram search under (H1)).
+    """
+    a = w / m
+    out = np.empty(reps)
+    for s in range(0, reps, chunk):
+        r = min(chunk, reps - s)
+        v = np.sort(stats.norm.cdf(rng.standard_normal((r, m)) + delta), axis=1)
+        if n_bins is None:
+            i = np.arange(m)
+            # left limit at v_i: count i; value at v_i: count i + 1; window ends
+            u = np.concatenate([v, v, np.full((r, 1), a), np.full((r, 1), 1 - a)], axis=1)
+            k = np.concatenate(
+                [
+                    np.broadcast_to(i, (r, m)),
+                    np.broadcast_to(i + 1, (r, m)),
+                    (v <= a).sum(1, keepdims=True),
+                    (v <= 1 - a).sum(1, keepdims=True),
+                ],
+                axis=1,
+            )
+        else:
+            grid = np.arange(1, n_bins) / n_bins
+            grid = grid[(grid >= a) & (grid <= 1 - a)]
+            off = 2.0 * np.arange(r)[:, None]
+            k = np.searchsorted((v + off).ravel(), (grid[None, :] + off).ravel(), side="right")
+            k = k.reshape(r, -1) - m * np.arange(r)[:, None]
+            u = np.broadcast_to(grid, k.shape)
+        val = (k - m * u) ** 2 * (1 / (m * u + lam) + 1 / (m * (1 - u) + lam))
+        val = np.where((u >= a) & (u <= 1 - a), val, -np.inf)
+        out[s : s + r] = val.max(axis=1)
+    return out
+
+
+_NULL_CACHE: dict = {}
+
+
+def null_sup(m, n_bins=None, reps=LIMIT_REPS):
+    key = (m, n_bins, reps)
+    if key not in _NULL_CACHE:
+        rng = np.random.default_rng([m, n_bins or 0, 2])
+        _NULL_CACHE[key] = np.sort(limit_sup(m, 0.0, reps, rng, n_bins=n_bins))
+    return _NULL_CACHE[key]
+
+
+def root_win(m, delta, k, n_bins=None, reps=LIMIT_REPS):
+    """E[Q(M)^K] (ties counted as losses) and its Monte Carlo SE."""
+    null = null_sup(m, n_bins)
+    rng = np.random.default_rng([m, int(round(1000 * delta)), n_bins or 0, 1])
+    sig = limit_sup(m, delta, reps, rng, n_bins=n_bins)
+    q = np.searchsorted(null, sig, side="left") / len(null)
+    x = q**k
+    return float(x.mean()), float(x.std() / np.sqrt(len(x)))
+
+
+# ------------------------------------------------------------------ P1, P2
 def p1():
     import xgboost as xgb
 
+    from shadowselect.theory import pearson_chi2_2x2
+
     errs = []
-    for seed in range(5):
+    for seed in range(20):
         rng = np.random.default_rng(seed)
-        n, k = 3000, 30 + 10 * seed
+        n, k = 3000, 10 + 5 * seed
         x = rng.standard_normal((n, 1))
         y = np.zeros(n)
         y[rng.choice(n, k, replace=False)] = 1
@@ -57,460 +172,753 @@ def p1():
         ).fit(x, y)
         root = m.get_booster().trees_to_dataframe().iloc[0]
         errs.append(abs(root.Gain / pearson_chi2_2x2(x[:, 0], y, root.Split) - 1))
-    emit(
-        "P1",
-        "XGBoost's reported root gain equals Pearson X^2 (prior intercept, lambda=0)",
-        f"max relative error {max(errs):.1e} over 5 fits",
-        "agrees",
-    )
+    e = max(errs)
+    macro("PoneErr", f"{e:.0e}".replace("e-0", "e-"), "{}")
+    row("P1", f"max relative error {e:.1e} over 20 fits", "agrees" if e <= 1e-6 else "disagrees")
 
 
 def p2():
     rng = np.random.default_rng(0)
-    res = []
-    for n, k, pos in ((60, 3, 17), (200, 10, 150), (1000, 5, 500)):
+    parts, z = [], []
+    for n, k, pos in ((60, 3, 17), (200, 10, 150), (1000, 5, 500), (5000, 5, 50)):
         p = k / n
-        vals = np.empty(20000)
-        for r in range(len(vals)):
-            y = np.zeros(n)
-            y[rng.choice(n, k, replace=False)] = 1
-            gl = np.sum(p - y[:pos])
-            vals[r] = gl**2 / (p * (1 - p)) * (1 / pos + 1 / (n - pos))
-        res.append(f"{vals.mean():.3f} vs {n / (n - 1):.3f}")
-    emit("P2", "E[Gain] at a fixed split = n/(n-1), any n_min", "; ".join(res), "agrees")
+        reps = 40_000
+        # positives' ranks are a uniformly random subset: k_L is hypergeometric
+        kl = rng.hypergeometric(k, n - k, pos, size=reps)
+        gl = pos * p - kl
+        vals = gl**2 / (p * (1 - p)) * (1 / pos + 1 / (n - pos))
+        target = n / (n - 1)
+        se = vals.std() / np.sqrt(reps)
+        z.append((vals.mean() - target) / se)
+        parts.append(f"{vals.mean():.3f} (SE {se:.3f}) vs {target:.3f}")
+    ok = all(abs(v) <= 3 for v in z)
+    p = float(stats.chi2.sf(np.sum(np.square(z)), len(z)))
+    row("P2", "; ".join(parts), "agrees" if ok else "disagrees", p)
 
 
-# ---------------------------------------------------------------- P3-P6 (E1)
+# ------------------------------------------------------------- P3-P6 (E1)
 def p3():
-    t = pd.read_csv(RESULTS / "e1_null_max.csv")
-    t = t[(t.intercept == "prior") & (t.lam == 1.0)]
+    t = load("e1_null_max.csv")
+    if t is None:
+        return row("P3", "results missing", "pending")
+    t = t[(t.intercept == "prior") & (t.lam == 1.0) & (t.min_child_weight == 1.0)]
     spread = t.groupby("n_min").q50.agg(lambda v: (v.max() - v.min()) / v.mean())
-    emit(
+    macro("PthreeSpread", 100 * spread.max(), "{:.1f}")
+    row(
         "P3",
-        "Null best-split law depends on n_min, not n (Thm 1; prior, XGBoost defaults). "
-        "Tests the finite-n formula (3) by simulation, not XGBoost itself",
-        f"median varies by at most {100 * spread.max():.1f}% across n in 1e3..1e5 "
-        f"(n_min 5..1000); median grows {t.q50.min():.1f} -> {t.q50.max():.1f}",
-        "agrees",
+        f"largest relative range of the median across n = 1e3..1e5: {spread.max():.3f} "
+        f"(n_min {int(spread.idxmax())}); medians {t.q50.min():.2f} to {t.q50.max():.2f}",
+        "agrees" if spread.max() <= 0.10 else "disagrees",
     )
-    a = pd.read_csv(RESULTS / "e1_null_max.csv")
-    a = a[(a.intercept == "auto")].groupby("n").q50.median()
-    return a
 
 
-def e1_root():
-    r = pd.read_csv(RESULTS / "e1_root_split.csv.gz")
-    if "outcome" not in r.columns:
-        return None
-    return r
+def p4():
+    r = load("e1_root_split.csv.gz")
+    if r is None:
+        return row("P4", "results missing", "pending")
+    out = {}
+    for tm, nb in (("exact", None), ("hist", 256)):
+        s = r[(r.intercept == "prior") & (r.tree_method == tm)]
+        g = cell_stats(s, ["n_min", "p", "delta"], "root_is_real")
+        preds = {}
+        for m, dlt in g[["n_min", "delta"]].drop_duplicates().itertuples(index=False):
+            preds[(m, dlt)] = root_win(int(m), float(dlt), 9, n_bins=nb)
+        g["pred"] = [preds[(m, d)][0] for m, d in zip(g.n_min, g.delta, strict=True)]
+        g["pred_se"] = [preds[(m, d)][1] for m, d in zip(g.n_min, g.delta, strict=True)]
+        g = g[informative(g.pred, g["mean"])]
+        pv = g.pred.clip(0.005, 0.995)
+        var = pv * (1 - pv) / g["count"] + g.pred_se**2
+        chi2 = float(np.sum((g["mean"] - g.pred) ** 2 / var))
+        p = float(stats.chi2.sf(chi2, len(g)))
+        mae = float(np.mean(np.abs(g["mean"] - g.pred)))
+        out[tm] = (len(g), chi2, p, mae)
+    n, chi2, p, mae = out["exact"]
+    nh, chi2h, ph, maeh = out["hist"]
+    macro("PfourMAE", mae)
+    macro("PfourP", p)
+    macro("PfourCells", n, "{}")
+    macro("PfourMAEhist", maeh)
+    ok = p >= 0.01 and mae <= 0.05
+    row(
+        "P4",
+        f"exact: {n} cells, chi-square {chi2:.1f}, p = {p:.2f}, mean |error| {mae:.3f}; "
+        f"hist (conditional on H1): chi-square {chi2h:.1f} on {nh} cells, p = {ph:.2g}, "
+        f"mean |error| {maeh:.3f}",
+        "agrees" if ok else "disagrees",
+        p,
+        hist_p=ph,
+    )
 
 
-def p4_p5(r):
-    pr = r[(r.intercept == "prior")]
-    g = pr.groupby(["tree_method", "n_min", "p", "delta"]).root_is_real.mean().reset_index()
-    rows = []
-    cache = {}
-    for _, row in g.iterrows():
-        key = (row.tree_method, row.n_min, row.delta)
-        if key not in cache:
-            nb = 256 if row.tree_method == "hist" else None
-            cache[key] = detection_probability(
-                int(row.n_min), row.delta, n_null=9, n_rep=600, n_bins=nb, seed=1
-            )
-        rows.append(cache[key])
-    g["predicted"] = rows
-    for tm in ("exact", "hist"):
-        s = g[g.tree_method == tm]
-        mae = np.mean(np.abs(s.predicted - s.root_is_real))
-        pv = s.predicted.clip(0.01, 0.99)
-        chi2 = float(np.sum((s.root_is_real - s.predicted) ** 2 / (pv * (1 - pv) / 100)))
-        mid = s[(s.predicted > 0.2) & (s.predicted < 0.8)]
-        mae_mid = np.mean(np.abs(mid.predicted - mid.root_is_real))
-        worst = s.loc[(s.predicted - s.root_is_real).abs().idxmax()]
-        emit(
-            f"P4-{tm}",
-            f"P(root uses the informative feature) matches the n->inf limit (Thm 1), {tm} search",
-            f"mean |pred - meas| = {mae:.3f} over {len(s)} cells (100 runs each), "
-            f"{mae_mid:.3f} over the {len(mid)} cells with 0.2<pred<0.8; binomial "
-            f"chi2 = {chi2:.0f} on {len(s)} df; worst "
-            f"{worst.root_is_real:.2f} vs {worst.predicted:.2f} at n_min={worst.n_min}, "
-            f"p={worst.p}, delta={worst.delta}",
-            "agrees" if mae < 0.06 else "partial",
-        )
-    s = g[g.tree_method == "exact"]
-    r_s = iso_r2(s.n_min * s.delta**2, s.root_is_real, increasing=True)
-    r_p = iso_r2(s.p, s.root_is_real, increasing=True)
-    emit(
+def logit_cluster(X, y, groups, iters=50):
+    """Logistic regression by Newton's method with a cluster-robust covariance."""
+    beta = np.zeros(X.shape[1])
+    for _ in range(iters):
+        mu = 1 / (1 + np.exp(-X @ beta))
+        W = mu * (1 - mu)
+        H = X.T @ (X * W[:, None]) + 1e-8 * np.eye(X.shape[1])
+        step = np.linalg.solve(H, X.T @ (y - mu))
+        beta += step
+        if np.max(np.abs(step)) < 1e-10:
+            break
+    mu = 1 / (1 + np.exp(-X @ beta))
+    Hinv = np.linalg.pinv(X.T @ (X * (mu * (1 - mu))[:, None]))
+    sc = X * (y - mu)[:, None]
+    S = pd.DataFrame(sc).groupby(np.asarray(groups)).sum().to_numpy()
+    G = len(S)
+    cov = Hinv @ (S.T @ S) @ Hinv * G / (G - 1)
+    return beta, cov, mu
+
+
+def p5():
+    from sklearn.preprocessing import SplineTransformer
+
+    r = load("e1_root_split.csv.gz")
+    if r is None:
+        return row("P5", "results missing", "pending")
+    s = r[(r.intercept == "prior") & (r.tree_method == "exact")].copy()
+    cm = s.groupby(["n_min", "p", "delta"]).root_is_real.transform("mean")
+    s = s[(cm >= 0.02) & (cm <= 0.98)].copy()  # saturated cells carry no information
+    s["logs"] = np.log(s.n_min * s.delta**2)
+    B = SplineTransformer(n_knots=6, degree=3, include_bias=True).fit_transform(s[["logs"]])
+    X = np.column_stack([B, np.log10(s.p)])
+    cells = s.n_min.astype(str) + "_" + s.p.astype(str) + "_" + s.delta.astype(str)
+    beta, cov, mu = logit_cluster(X, s.root_is_real.to_numpy(float), cells)
+    b, se = beta[-1], np.sqrt(cov[-1, -1])
+    scale = float(np.mean(mu * (1 - mu)))
+    lo, hi = (b - 1.96 * se) * scale, (b + 1.96 * se) * scale
+    p = float(2 * stats.norm.sf(abs(b / se)))
+    macro("PfiveAME", b * scale, "{:+.3f}")
+    macro("PfiveLo", lo, "{:+.3f}")
+    macro("PfiveHi", hi, "{:+.3f}")
+    ok = lo >= -0.05 and hi <= 0.05
+    row(
         "P5",
-        "Root detection is organised by s = n_min*delta^2, not by p",
-        f"monotone-fit R^2: s {r_s:.2f}, p {r_p:.2f}",
-        "agrees" if r_s > 0.85 else "partial",
+        f"change in root win probability per decade of p at fixed s: {b * scale:+.3f} "
+        f"(95% CI {lo:+.3f} to {hi:+.3f}; {cells.nunique()} cells, {len(s)} runs)",
+        "agrees" if ok else "disagrees",
+        p,
     )
-    return g
 
 
-def p6(r):
+def p6():
+    r = load("e1_root_split.csv.gz")
+    if r is None:
+        return row("P6", "results missing", "pending")
+    from shadowselect.simulation import make_dataset
+    from shadowselect.theory import split_gains
+
     a = r[(r.intercept == "auto") & (r.n_min == 50) & (r.delta == 0.5)]
-    meas = {}
-    for (tm, p), v in a.groupby(["tree_method", "p"]).outcome:
-        meas[(tm, p)] = (
-            (v == "no_split").mean(),
-            (v == "noise").sum() / max((v != "no_split").sum(), 1),
-        )
-    pr = r[(r.intercept == "prior")].outcome.eq("no_split").mean()
-    # theory: under exact greedy the root splits iff some feature has Gain > 0, eq. (7),
-    # evaluated on each E1 run's own data (same seeds)
-    preds, agree = {}, 0
     ex = a[a.tree_method == "exact"]
-    for p in (0.001, 0.01, 0.1):
+    agree, n_runs, pred, meas = 0, 0, {}, {}
+    for p in sorted(ex.p.unique()):
         rows = ex[ex.p == p]
         cnt = 0
-        for _, row in rows.iterrows():
-            X, y = make_dataset(int(row.n), p, 0.5, 1, 9, int(row.seed))
+        for _, rw in rows.iterrows():
+            X, y = make_dataset(int(rw.n), p, 0.5, 1, 9, int(rw.seed))
             b = 1 / (1 + np.exp(-(4 * y.mean() - 2)))
             best = max(
                 split_gains(X[:, j], y, lam=1.0, min_child_weight=1.0, base_score=b)[1].max()
-                for j in range(10)
+                for j in range(X.shape[1])
             )
             cnt += best <= 0
-            agree += (best <= 0) == (row.outcome == "no_split")
-        preds[p] = cnt / len(rows)
-    n_runs = len(ex)
-    txt = "; ".join(
-        f"p={p}: predicted {preds[p]:.2f}, measured exact {meas[('exact', p)][0]:.2f}, "
-        f"hist {meas[('hist', p)][0]:.2f}"
-        for p in (0.001, 0.01, 0.1)
-    )
-    emit(
+            agree += (best <= 0) == (rw.outcome == "no_split")
+            n_runs += 1
+        pred[p] = cnt / len(rows)
+        meas[p] = float((rows.outcome == "no_split").mean())
+    rate = agree / n_runs
+    macro("PsixAgree", 100 * rate, "{:.1f}")
+    for p in pred:
+        macro(f"PsixNoSplit{str(p).replace('0.', '').replace('.', '')}", meas[p])
+    row(
         "P6",
-        "Automatic intercept: the first tree often does not split, more so as p falls "
-        "(Prop 5, eq. 7). Cell n_min=50, delta=0.5",
-        f"P(no split) {txt}. Per-run agreement of eq. (7) with XGBoost (exact): "
-        f"{agree}/{n_runs}. When the exact-search root does split at p=0.001, a noise feature "
-        f"wins {meas[('exact', 0.001)][1]:.0%} of the time. Prevalence intercept: no-split rate "
-        f"{pr:.2f}",
-        "agrees (exact); hist removes the extreme splits, so it almost never splits",
+        f"per-run agreement {agree}/{n_runs} ({rate:.1%}); P(no split) "
+        + ", ".join(f"p = {p}: {meas[p]:.2f}" for p in pred),
+        "agrees" if rate >= 0.99 else "disagrees",
     )
 
 
-# ---------------------------------------------------------------- P7-P10 (E2, E3)
-def e2():
-    return pd.read_csv(RESULTS / "e2_sweep.csv.gz")
+# ------------------------------------------------------------- P7, P8 (E2)
+def e2_prior():
+    d = load("e2_sweep.csv.gz")
+    if d is None:
+        return None
+    return d[(d.intercept == "prior") & (d.importance == "gain") & (d.delta > 0)]
 
 
-def p7(d):
-    s = d[(d.delta > 0) & (d.importance == "gain")]
-    g = s.groupby(["delta", "n_min", "p", "intercept"]).fnr_q100.mean().unstack("intercept")
-    g = g.reset_index()
-    g["gap"] = g.auto - g.prior
-    small = g[g.p <= 0.01].gap.mean()
-    large = g[g.p >= 0.05].gap.mean()
-    worst = g.loc[g.gap.idxmax()]
-    emit(
+def p7():
+    d = e2_prior()
+    if d is None:
+        return row("P7", "results missing", "pending")
+    k = int(d.n_noise.iloc[0])
+    g = cell_stats(d, ["n_min", "p", "delta"], "fnr_q100")
+    preds = {}
+    for m, dlt in g[["n_min", "delta"]].drop_duplicates().itertuples(index=False):
+        preds[(m, dlt)] = root_win(int(m), float(dlt), k, n_bins=256)
+    g["pred"] = [1 - preds[(m, d)][0] for m, d in zip(g.n_min, g.delta, strict=True)]
+    g["pred_se"] = [preds[(m, d)][1] for m, d in zip(g.n_min, g.delta, strict=True)]
+    g = g[informative(g.pred, g["mean"])]
+    se = np.sqrt(g.se**2 + g.pred_se**2)
+    ok = g["mean"] >= g.pred - 2 * se
+    # one-sided p-value for "measured below prediction"; SE floor avoids 0/0
+    z = (g["mean"] - g.pred) / np.maximum(se, 1e-3)
+    p = bonferroni_min(stats.norm.cdf(z))
+    macro("PsevenPass", int(ok.sum()), "{}")
+    macro("PsevenCells", len(g), "{}")
+    macro("PsevenExcess", float((g["mean"] - g.pred).median()))
+    row(
         "P7",
-        "Full ensemble: auto intercept hurts at small p, not at moderate p (Sec 3.5)",
-        f"mean FNR gap auto-prior: {small:+.2f} for p<=0.01, {large:+.2f} for p>=0.05; "
-        f"largest {worst.auto:.2f} vs {worst.prior:.2f} (n_min={worst.n_min}, p={worst.p}, "
-        f"delta={worst.delta})",
-        "agrees" if small > 0.05 > abs(large) else "partial",
+        f"{int(ok.sum())} of {len(g)} informative cells at or above the root-split "
+        f"prediction (K = {k}, hist grid); median excess {float((g['mean'] - g.pred).median()):+.2f}",
+        "agrees" if ok.all() else "disagrees",
+        p,
     )
 
 
-def iso_loo(x, y, increasing=False):
-    x = np.log(np.asarray(x, float))
-    y = np.asarray(y, float)
-    pred = np.empty_like(y)
-    for i in range(len(y)):
-        m = np.arange(len(y)) != i
-        pred[i] = (
-            IsotonicRegression(increasing=increasing, out_of_bounds="clip")
-            .fit(x[m], y[m])
-            .predict(x[i : i + 1])[0]
-        )
-    return 1 - np.mean((pred - y) ** 2) / np.var(y)
-
-
-def p8(d):
-    s = d[(d.delta > 0) & (d.importance == "gain")]
-    out = []
-    for icpt in ("prior", "auto"):
-        g = s[s.intercept == icpt].groupby(["delta", "n_min", "p"]).fnr_q100.mean().reset_index()
-        sv = g.n_min * g.delta**2
-        txt = (
-            f"{icpt} ({len(g)} cells): s {iso_r2(sv, g.fnr_q100):.2f} "
-            f"(LOO {iso_loo(sv, g.fnr_q100):.2f}), n_min {iso_r2(g.n_min, g.fnr_q100):.2f}, "
-            f"delta {iso_r2(g.delta, g.fnr_q100):.2f}, p decreasing "
-            f"{iso_r2(1 / g.p, g.fnr_q100):.2f} / increasing "
-            f"{iso_r2(1 / g.p, g.fnr_q100, increasing=True):.2f} "
-            f"(LOO {iso_loo(1 / g.p, g.fnr_q100, increasing=True):.2f})"
-        )
-        if icpt == "prior":
-            rng = np.random.default_rng(0)
-            boots = []
-            for _ in range(400):
-                i = rng.integers(0, len(g), len(g))
-                boots.append(iso_r2(sv.iloc[i], g.fnr_q100.iloc[i]))
-            lo, hi = np.percentile(boots, [2.5, 97.5])
-            ns = g[(g.fnr_q100 > 0.02) & (g.fnr_q100 < 0.98)]
-            nsv = ns.n_min * ns.delta**2
-            txt += (
-                f"; bootstrap 95% CI for s [{lo:.2f}, {hi:.2f}]; {len(ns)} non-saturated "
-                f"cells: s {iso_r2(nsv, ns.fnr_q100):.2f} (LOO {iso_loo(nsv, ns.fnr_q100):.2f})"
+def p8():
+    d = e2_prior()
+    if d is None:
+        return row("P8", "results missing", "pending")
+    g = cell_stats(d, ["n_min", "delta", "p"], "fnr_q100").sort_values(["n_min", "delta", "p"])
+    diffs = []
+    for (m, dlt), v in g.groupby(["n_min", "delta"]):
+        v = v.sort_values("p")
+        for i in range(len(v) - 1):
+            lo, hi = v.iloc[i], v.iloc[i + 1]  # lo has the smaller p
+            if not informative([lo["mean"]], [hi["mean"]])[0]:
+                continue
+            diffs.append(
+                dict(
+                    n_min=m,
+                    delta=dlt,
+                    p_small=lo.p,
+                    p_large=hi.p,
+                    diff=lo["mean"] - hi["mean"],
+                    se=np.sqrt(lo.se**2 + hi.se**2),
+                )
             )
-        out.append(txt)
-    emit(
+    if not diffs:
+        return row("P8", "no informative pairs", "pending")
+    t = pd.DataFrame(diffs)
+    ok = t["diff"] >= -2 * t.se
+    z = t["diff"] / np.maximum(t.se, 1e-3)
+    p = bonferroni_min(stats.norm.cdf(z))
+    w = 1 / np.maximum(t.se, 1e-3) ** 2
+    pooled = float(np.sum(w * t["diff"]) / np.sum(w))
+    pooled_se = float(1 / np.sqrt(np.sum(w)))
+    macro("PeightPass", int(ok.sum()), "{}")
+    macro("PeightPairs", len(t), "{}")
+    macro("PeightPooled", pooled, "{:+.3f}")
+    macro("PeightPooledSE", pooled_se, "{:.3f}")
+    row(
         "P8",
-        "Full 300-round ensemble FNR is organised by s = n_min*delta^2 (Conjecture 2)",
-        "isotonic R^2 of cell-mean FNR on " + "; ".join(out),
-        "strong (prior); partial (auto)",
+        f"{int(ok.sum())} of {len(t)} adjacent-p pairs with FNR(smaller p) >= FNR(larger p) - 2 SE; "
+        f"precision-weighted mean difference {pooled:+.3f} (SE {pooled_se:.3f})",
+        "agrees" if ok.all() else "disagrees",
+        p,
     )
 
 
-def p9(d):
-    c = d[(d.delta == 0) & (d.importance == "total_gain")].copy()
-    ph = c.n_min / c.n
-    c["budget"] = c.n * (-ph * np.log(ph) - (1 - ph) * np.log(1 - ph))
-    c["total"] = 10 * c.raw_real_mean  # all 10 columns are null in the control
-    g = c.groupby(["intercept", "n", "p"]).apply(lambda v: (v.total / v.budget).mean())
-    gp = c[c.intercept == "prior"].groupby(["n", "p"]).apply(lambda v: (v.total / v.budget).mean())
-    eta = 0.1
-    k = 1 / (eta * (1 - eta / 2))
-    emit(
+# ------------------------------------------------------------ P9-P12 (level)
+def p9():
+    parts, ok_all, ps = [], True, []
+    bound = 1 / 11
+    e4, e4b = load("e4_mitigations.csv.gz"), load("e4b_baselines.csv.gz")
+    sets = []
+    if e4 is not None:
+        for m in ("naive_auto", "class_weight", "downsample", "early_stop"):
+            sets.append((m, e4[e4.method == m]))
+    if e4b is not None:
+        for m in ("oneshot_gain", "oneshot_total_gain", "oneshot_shap", "mwu_shadow_max"):
+            sets.append((m, e4b[e4b.method == m]))
+    if not sets:
+        return row("P9", "results missing", "pending")
+    for m, v in sets:
+        mean, se = v.fpr.mean(), v.fpr.std() / np.sqrt(len(v))
+        ok = mean <= bound + 2 * se
+        ok_all &= ok
+        ps.append(stats.norm.sf((mean - bound) / se))
+        parts.append(f"{m.replace('_', ' ')} {mean:.3f} ({se:.3f})")
+        macro(f"Pnine{m.replace('_', '')}", mean, "{:.3f}")
+    row(
         "P9",
-        "Gain accounting (Prop 9): total gain ~ (loss removed)/(eta(1-eta/2)) = 10.53 x loss "
-        "removed; on pure noise the loss removed is memorisation of n*H2(p)",
-        f"total/(n H2) = {g.mean():.1f} +- {g.std():.1f} over all {len(g)} control cells "
-        f"(prior intercept: {gp.mean():.1f} +- {gp.std():.1f}, i.e. about "
-        f"{gp.mean() / k:.0%} of the initial loss memorised in 300 trees)",
-        "identity (Prop 9); the fraction removed is empirical",
+        "FPR (SE) against 1/11 = 0.091: " + "; ".join(parts),
+        "agrees" if ok_all else "disagrees",
+        bonferroni_min(ps),
     )
 
 
 def p10():
-    d = pd.read_csv(RESULTS / "e3_boosting_rounds.csv.gz")
-    d = d[d.importance == "gain"].copy()
-    d.loc[(d.raw_real_mean == 0) & (d.raw_noise_max == 0), "fnr_q100"] = np.nan
-    g = d.groupby(["intercept", "delta", "n_min", "p", "rounds"]).fnr_q100.mean().reset_index()
-    pr = g[g.intercept == "prior"].pivot_table(
-        index=["delta", "n_min", "p"], columns="rounds", values="fnr_q100"
-    )
-    late = pr[300]
-    diff = (pr[300] - pr[30]).dropna()
-    au = g[(g.intercept == "auto") & (g.p == 0.001)].groupby("rounds").fnr_q100.mean()
-    emit(
+    d = load("e10_discrete_level.csv.gz")
+    tag = ""
+    if d is None:
+        d = load("e10_discrete_level_quick.csv.gz")
+        tag = " (quick run)"
+    if d is None:
+        return row("P10", "results missing", "pending")
+    k = 6
+    bound = 1 / (k + 1)
+    g = cell_stats(d, ["shadows", "case", "importance"], "hit")
+    pf = g[g.shadows == "per_feature"]
+    ok = pf["mean"] <= bound + 2 * pf.se
+    ps = stats.norm.sf((pf["mean"] - bound) / np.maximum(pf.se, 1e-3))
+    bo = g[g.shadows == "boruta"]
+    for _, rw in g.iterrows():
+        macro(
+            f"Pten{rw.shadows.replace('_', '')}{rw.case.replace('_', '')}{rw.importance.replace('_', '')}",
+            rw["mean"],
+            "{:.3f}",
+        )
+    hi = pf.loc[pf["mean"].idxmax()]
+    bhi = bo.loc[bo["mean"].idxmax()]
+    row(
         "P10",
-        "Late-round memorisation and FNR (Sec 3.8)",
-        f"prior: mean FNR {pr[1].mean():.2f} at k=1, {pr[3].mean():.2f} at k=3, "
-        f"{pr[30].mean():.2f} at k=30, {late.mean():.2f} at k=300; paired change k=30->300 "
-        f"{diff.mean():+.3f} +- {diff.std() / np.sqrt(len(diff)):.3f} (SE, {len(diff)} cells); "
-        f"auto, p=0.001: " + ", ".join(f"k={k}: {v:.2f}" for k, v in au.items()),
-        "partial: under the prior intercept most of the failure is present by round 3 and "
-        "later rounds add a small, significant increase; the large memorisation spike is an "
-        "auto-intercept, early-round effect",
+        f"per-feature shadows: {int(ok.sum())} of {len(pf)} case/importance pairs within the bound 1/7 = 0.143 + 2 SE; "
+        f"largest {hi['mean']:.3f} ({hi.case.replace('_', ' ')}, {hi.importance.replace('_', ' ')}). "
+        f"Boruta shadows, for comparison: largest {bhi['mean']:.3f} ({bhi.case.replace('_', ' ')}, {bhi.importance.replace('_', ' ')})"
+        + tag,
+        ("agrees" if ok.all() else "disagrees") + tag,
+        bonferroni_min(ps),
     )
 
 
-# ---------------------------------------------------------------- P11, P12 (E4, E5)
 def p11():
-    p = RESULTS / "e4_mitigations.csv.gz"
-    if not p.exists():
-        return
-    d = pd.read_csv(p)
-    g = d[d.n_min <= 100].groupby("method")[["fnr", "fpr"]].mean()
-    txt = "; ".join(f"{m} FNR {r.fnr:.2f}/FPR {r.fpr:.2f}" for m, r in g.iterrows())
-    perm = g.loc["boruta_perm"]
-    naive = g.loc["naive_auto"]
-    ok = perm.fnr < naive.fnr and perm.fpr <= naive.fpr + 0.05
-    emit(
+    d = load("e8_many_shadows.csv.gz")
+    if d is None:
+        return row("P11", "results missing", "pending")
+    g = cell_stats(d, ["n_min", "n_noise"], "fnr_q100")
+    res, ps = [], []
+    for _m, v in g.groupby("n_min"):
+        v = v.set_index("n_noise")
+        ks = sorted(v.index)
+        for i, k1 in enumerate(ks):
+            for k2 in ks[i + 1 :]:
+                a, b = v.loc[k1], v.loc[k2]
+                if not informative([a["mean"]], [b["mean"]])[0]:
+                    continue
+                se = np.sqrt(a.se**2 + b.se**2)
+                res.append(b["mean"] >= a["mean"] - 2 * se)
+                ps.append(stats.norm.cdf((b["mean"] - a["mean"]) / max(se, 1e-3)))
+    txt = "; ".join(
+        f"n_min {m}: "
+        + ", ".join(f"K={int(k)} {x:.2f}" for k, x in zip(v.n_noise, v["mean"], strict=True))
+        for m, v in g.groupby("n_min")
+    )
+    row(
         "P11",
-        "Held-out permutation importance against training gain: FNR at a similar FPR (n_min<=100)",
-        txt,
-        "permutation better" if ok else "no advantage",
+        f"{sum(res)} of {len(res)} informative comparisons monotone within 2 SE; {txt}",
+        "agrees" if all(res) else "disagrees",
+        bonferroni_min(ps),
     )
 
 
 def p12():
-    p = RESULTS / "e5_backends.csv.gz"
-    if not p.exists():
-        return
-    d = pd.read_csv(p)
-    g = d.groupby(["backend", "importance", "n_min", "p"]).fnr_q100.mean().unstack("p")
-    g["gap"] = g[0.01] - g[0.1]
-    txt = "; ".join(
-        f"{b} ({imp}) {v:+.2f}"
-        for (b, imp), v in g.groupby(["backend", "importance"]).gap.mean().items()
-    )
-    hi = g.reset_index()
-    hi = hi[hi.n_min >= 250].groupby(["backend", "importance"]).gap.mean()
-    emit(
+    d = load("e7_rounds.csv.gz", dtype={"hits_max": str, "hits_q90": str})
+    if d is None:
+        return row("P12", "results missing", "pending")
+    d = d.sort_values(["n_min", "p", "repeat", "round"])
+    n_cand, k, n_real = 10, 10, 5
+    level = 0.05 / n_cand
+    parts, ok_all, ps = [], True, []
+    rmax = int(d["round"].max()) + 1
+    theta2 = []
+    for R in (10, 20, 40, rmax):
+        cdf = stats.binom.cdf(np.arange(R + 1), R, 0.5)
+        r_R = int(np.max(np.nonzero(cdf < level)[0])) if (cdf < level).any() else -1
+        keep = []
+        for _, v in d[d["round"] < R].groupby(["n_min", "p", "repeat"]):
+            hits = np.array([[c == "1" for c in h] for h in v.hits_max]).sum(axis=0)
+            keep.append(float((hits[n_real:] > r_R).mean()))
+            if R == rmax:
+                h = hits[n_real:]
+                theta2.append(float(np.mean(h * (h - 1) / (R * (R - 1)))))
+        keep = np.array(keep)
+        mean, se = keep.mean(), keep.std() / np.sqrt(len(keep))
+        if r_R >= 0:
+            bound = min(1.0, R / ((k + 1) * (r_R + 1)))
+            ok = mean <= bound + 2 * se
+            ok_all &= ok
+            ps.append(stats.norm.sf((mean - bound) / max(se, 1e-3)))
+            parts.append(f"R={R}: keep {mean:.3f} (SE {se:.3f}), bound {bound:.3f}")
+        else:
+            parts.append(f"R={R}: no rejection possible (r_R = -1), keep {mean:.3f}")
+        macro(f"PtwelveKeep{R}", mean, "{:.3f}")
+    th = np.array(theta2)
+    lim, lim_se = 4 * th.mean(), 4 * th.std() / np.sqrt(len(th))
+    ok = mean <= lim + 2 * np.sqrt(se**2 + lim_se**2)
+    ok_all &= ok
+    ps.append(stats.norm.sf((mean - lim) / max(np.sqrt(se**2 + lim_se**2), 1e-3)))
+    macro("PtwelveLimit", lim, "{:.3f}")
+    row(
         "P12",
-        "Count-based child constraints (LightGBM defaults) leave residual p-dependence at "
-        "fixed n_min (Prop 3 scope)",
-        f"mean FNR(p=0.01) - FNR(p=0.1) at equal n_min: {txt}. At n_min>=250 only: "
-        + "; ".join(f"{b} ({imp}) {v:+.2f}" for (b, imp), v in hi.items()),
-        "partial: LightGBM shows the largest gap (both leaf settings) and the only one that "
-        "persists at n_min>=250; every learner shows some gap at n_min 50-100; open",
+        "; ".join(parts) + f"; at R={rmax}: 4 E[theta^2] = {lim:.3f} (SE {lim_se:.3f})",
+        "agrees" if ok_all else "disagrees",
+        bonferroni_min(ps),
     )
 
 
-# ---------------------------------------------------------------- P13-P17 (loop 2)
-def root_fnr(n_min, delta, k, n_null_rep=20000, n_rep=3000):
-    from shadowselect.theory import limit_max_gain
+# ------------------------------------------------------- P13, P14 (rank test)
+def mw_predict(mu, n_rel, n_null, n_shadows, reps=200_000, seed=0):
+    """FNR of the max-shadow rule and of BH (q = 0.1, 0.2) when each relevant
+    candidate's standardised statistic is N(mu, 1) and null ones N(0, 1)."""
+    rng = np.random.default_rng(seed)
+    mu = np.broadcast_to(np.asarray(mu, float), (n_rel,))
+    zr = rng.standard_normal((reps, n_rel)) + mu
+    zn = rng.standard_normal((reps, n_null))
+    zs = rng.standard_normal((reps, n_shadows))
+    pr, pn, psh = (2 * stats.norm.sf(np.abs(z)) for z in (zr, zn, zs))
+    out = {"mwu_shadow_max": 1 - (pr < psh.min(axis=1, keepdims=True)).mean(axis=0)}
+    pv = np.concatenate([pr, pn], axis=1)
+    m = pv.shape[1]
+    o = np.argsort(pv, axis=1)
+    ps = np.take_along_axis(pv, o, 1) * m / np.arange(1, m + 1)
+    adj = np.minimum.accumulate(ps[:, ::-1], axis=1)[:, ::-1]
+    bh = np.empty_like(adj)
+    np.put_along_axis(bh, o, adj, 1)
+    for q in (0.1, 0.2):
+        out[f"mwu_bh_{q}"] = 1 - (bh[:, :n_rel] < q).mean(axis=0)
+    return {k: (float(np.mean(v)), v) for k, v in out.items()}
 
-    null = np.sort(limit_max_gain(n_min, 0.0, n_rep=n_null_rep, seed=2))
-    sig = limit_max_gain(n_min, delta, n_rep=n_rep, seed=1)
-    f = np.searchsorted(null, sig, side="left") / len(null)
-    return 1 - float(np.mean(f**k))
+
+def sauc_mu(auc, n_min):
+    sauc = 4 * np.pi * n_min * (np.asarray(auc) - 0.5) ** 2
+    return np.sign(np.asarray(auc) - 0.5) * np.sqrt(3 * sauc / np.pi)
 
 
 def p13():
-    d = pd.read_csv(RESULTS / "e4_mitigations.csv.gz")
-    one = d[d.method.isin(["naive", "naive_auto", "class_weight", "downsample", "early_stop"])]
-    g = one.groupby("method").fpr.mean()
-    se = one.fpr.std() / np.sqrt(len(one))
-    e6 = pd.read_csv(RESULTS / "e6_univariate.csv.gz")
-    m6 = e6[e6.method == "mwu_shadow_max"].fpr.mean()
-    emit(
+    e6 = load("e6_univariate.csv.gz")
+    if e6 is None:
+        return row("P13", "results missing", "pending")
+    auc = stats.norm.cdf(0.5 / np.sqrt(2))
+    res, ps, parts = [], [], []
+    for meth in ("mwu_shadow_max", "mwu_bh_0.2"):
+        g = cell_stats(e6[e6.method == meth], ["n_min", "p"], "fnr")
+        for _, rw in g.iterrows():
+            pred = mw_predict(sauc_mu(auc, rw.n_min), 5, 5, 10, reps=50_000, seed=int(rw.n_min))[
+                meth
+            ][0]
+            if not informative([pred], [rw["mean"]])[0]:
+                continue
+            ok = abs(rw["mean"] - pred) <= 0.05 + 2 * rw.se
+            res.append(ok)
+            ps.append(2 * stats.norm.sf(abs(rw["mean"] - pred) / max(rw.se, 1e-3)))
+            parts.append(
+                (
+                    abs(rw["mean"] - pred),
+                    f"{meth.replace('mwu_', '').replace('_', ' ')}, n_min {int(rw.n_min)}, p {rw.p}: {rw['mean']:.2f} vs {pred:.2f}",
+                )
+            )
+    worst = max(parts)[1]
+    row(
         "P13",
-        "Max-shadow rule has level 1/(K+1) for each null candidate, any n_min, p, learner "
-        "(Prop 6); K=10 gives 0.091",
-        "one-shot XGBoost methods (E4): "
-        + ", ".join(f"{m} {v:.3f}" for m, v in g.items())
-        + f" (pooled {one.fpr.mean():.3f} +- {se:.3f}); rank-test shadow rule (E6) {m6:.3f}",
-        "agrees",
+        f"{sum(res)} of {len(res)} informative cells within 0.05 + 2 SE; largest deviation {worst}",
+        "agrees" if all(res) else "disagrees",
+        bonferroni_min(ps),
     )
 
 
 def p14():
-    d = pd.read_csv(RESULTS / "e8_many_shadows.csv.gz")
-    g = d.groupby(["n_min", "n_noise"]).fnr_q100.mean().unstack("n_noise")
-    parts, above = [], True
-    for n_min, row in g.iterrows():
-        preds = {k: root_fnr(int(n_min), 0.5, int(k)) for k in g.columns}
-        above &= all(row[k] >= preds[k] - 0.05 for k in g.columns)
-        parts.append(
-            f"n_min={n_min}: "
-            + ", ".join(f"K={k} {row[k]:.2f} (root {preds[k]:.2f})" for k in g.columns)
-        )
-    mono = bool((g.diff(axis=1).iloc[:, 1:] >= -0.02).all().all())
-    emit(
+    d = load("e9_robustness.csv.gz")
+    tag = ""
+    if d is None:
+        d = load("e9_robustness_quick.csv.gz")
+        tag = " (quick run)"
+    if d is None:
+        return row("P14", "results missing", "pending")
+    from dgp import population_auc
+
+    res, ps, parts = [], [], []
+    for dgp in ("t3", "lognormal", "corr_rel"):
+        auc, roles = population_auc(dgp, 0.5)
+        a = float(np.mean(np.asarray(auc)[roles == "rel"]))
+        for meth in ("mwu_shadow_max", "mwu_bh_0.1"):
+            g = cell_stats(d[(d.dgp == dgp) & (d.method == meth)], ["n_min"], "keep_rel")
+            for _, rw in g.iterrows():
+                pred = (
+                    1
+                    - mw_predict(sauc_mu(a, rw.n_min), 5, 5, 10, reps=50_000, seed=int(rw.n_min))[
+                        meth
+                    ][0]
+                )
+                if not informative([pred], [rw["mean"]])[0]:
+                    continue
+                ok = abs(rw["mean"] - pred) <= 0.05 + 2 * rw.se
+                res.append(ok)
+                ps.append(2 * stats.norm.sf(abs(rw["mean"] - pred) / max(rw.se, 1e-3)))
+                parts.append(
+                    (
+                        abs(rw["mean"] - pred),
+                        f"{dgp.replace('_', ' ')}, {meth.replace('mwu_', '').replace('_', ' ')}, n_min {int(rw.n_min)}: {rw['mean']:.2f} vs {pred:.2f}",
+                    )
+                )
+    worst = max(parts)[1] if parts else "none"
+    row(
         "P14",
-        "More shadows raise the bar: FNR increases with K (Cor 1); ensemble at or above "
-        "the root-split prediction (Conj 2)",
-        "; ".join(parts),
-        f"agrees (monotone in K: {mono}; ensemble >= root: {above})",
+        f"{sum(res)} of {len(res)} informative cells within 0.05 + 2 SE{tag}; largest deviation {worst}",
+        ("agrees" if all(res) else "disagrees") + tag,
+        bonferroni_min(ps),
     )
 
 
+# ------------------------------------------------------------------ P15
 def p15():
-    p = RESULTS / "e7_rounds.csv.gz"
-    if not p.exists():
-        return
-    from scipy import stats
+    import xgboost as xgb
 
-    d = pd.read_csv(p, dtype={"hits_max": str, "hits_q90": str})
-    d = d.sort_values(["n_min", "p", "repeat", "round"])
-    out = []
-    for R in (10, 20, 40, 60):
-        level = 0.05 / 10
-        keep_null, keep_real = [], []
-        for _, v in d[d["round"] < R].groupby(["n_min", "p", "repeat"]):
-            hits = np.array([[c == "1" for c in h] for h in v.hits_max]).sum(axis=0)
-            rejected = stats.binom.cdf(hits, R, 0.5) < level
-            keep_real.append(1 - rejected[:5].mean())
-            keep_null.append(1 - rejected[5:].mean())
-        cdf = stats.binom.cdf(np.arange(R + 1), R, 0.5)
-        r = int(np.max(np.nonzero(cdf < level)[0])) if (cdf < level).any() else -1
-        const = stats.binom.sf(r, R, 1 / 11)
-        out.append(
-            f"R={R}: FPR {np.mean(keep_null):.3f} (constant-pi {const:.3f}, Markov bound "
-            f"{min(1, R / (11 * (r + 1))):.2f}), FNR {1 - np.mean(keep_real):.3f}"
+    worst_t, worst_n = 0.0, 0.0
+    for seed in range(10):
+        rng = np.random.default_rng(seed)
+        n = 4000
+        X = rng.standard_normal((n, 5))
+        y = (rng.random(n) < 1 / (1 + np.exp(-(X[:, 0] - 3)))).astype(float)
+        b, eta, lam = y.mean(), 0.1, 1.0
+        m = xgb.XGBClassifier(
+            n_estimators=1,
+            max_depth=3,
+            learning_rate=eta,
+            reg_lambda=lam,
+            gamma=0.0,
+            min_child_weight=1.0,
+            tree_method="exact",
+            base_score=b,
+        ).fit(X, y)
+        t = m.get_booster().trees_to_dataframe()
+        leaves = t[t.Feature == "Leaf"]
+        H = leaves.Cover.to_numpy()
+        G = -leaves.Gain.to_numpy() * (H + lam) / eta  # leaf value is -eta G / (H + lam)
+        Gt, Ht = float(np.sum(b - y)), float(n * b * (1 - b))
+        split_sum = t[t.Feature != "Leaf"].Gain.sum()
+        identity = np.sum(G**2 / (H + lam)) - Gt**2 / (Ht + lam)
+        worst_t = max(worst_t, abs(split_sum / identity - 1))
+        # Newton decrease computed directly from the leaf values, against eq. (14)
+        v = -eta * G / (H + lam)
+        direct = -np.sum(G * v + 0.5 * H * v**2)
+        formula = eta * (1 - eta / 2) * np.sum(G**2 / (H + lam)) + eta**2 * lam / 2 * np.sum(
+            G**2 / (H + lam) ** 2
         )
-    emit(
+        worst_n = max(worst_n, abs(direct / formula - 1))
+    worst = max(worst_t, worst_n)
+    row(
         "P15",
-        "Keep-tentative FPR after R rounds is below the Markov bound (10) and falls with R "
-        "(Prop 7); excess over the constant-pi value measures data dependence",
-        "; ".join(out),
-        "see text",
+        f"max relative error: telescoping {worst_t:.1e}, Newton decrease {worst_n:.1e} (10 trees)",
+        "agrees" if worst <= 1e-5 else "disagrees",
     )
 
 
-def p16():
-    from scipy import stats
+# ------------------------------------------------------------- fit counts
+def fit_counts():
+    """Number of data sets (one model fit or one selection run each) per experiment."""
+    files = dict(
+        Etwo=["e2_sweep.csv.gz", "e2_sweep_xgb3.csv.gz"],
+        Ethree=["e3_boosting_rounds.csv.gz"],
+        Efour=["e4b_baselines.csv.gz"],
+        Efive=["e5_backends.csv.gz"],
+        Enine=["e9_robustness.csv.gz"],
+        Eten=["e10_discrete_level.csv.gz"],
+        Eeleven=["e11_real_data.csv.gz"],
+    )
+    for name, fs in files.items():
+        total = 0
+        for f in fs:
+            d = load(f)
+            if d is None:
+                continue
+            keys = [
+                c
+                for c in (
+                    "regime",
+                    "dgp",
+                    "dataset",
+                    "case",
+                    "shadows",
+                    "backend",
+                    "n",
+                    "p",
+                    "n_min",
+                    "delta",
+                    "intercept",
+                    "repeat",
+                    "seed",
+                )
+                if c in d.columns
+            ]
+            total += len(d[keys].drop_duplicates())
+        macro(f"{name}Fits", f"{total:,}".replace(",", "{,}") if total else "--", "{}")
 
-    e6 = pd.read_csv(RESULTS / "e6_univariate.csv.gz")
-    meas = e6.groupby(["method", "n_min"]).fnr.mean()
-    rng = np.random.default_rng(0)
-    rows = []
-    for n_min in sorted(e6.n_min.unique()):
-        if n_min > 100:
-            continue
-        reps = 20000
 
-        def z(dlt, k, m=n_min, reps=reps):
-            w = stats.norm.cdf(rng.standard_normal((reps, k, m)) + dlt).mean(axis=2)
-            return np.abs(w - 0.5) * np.sqrt(12 * m)
-
-        zr, zn, zs = z(0.5, 5), z(0.0, 5), z(0.0, 10)
-        pred_sh = np.mean(zr <= zs.max(axis=1, keepdims=True))
-        pv = 2 * stats.norm.sf(np.concatenate([zr, zn], axis=1))
-        o = np.argsort(pv, axis=1)
-        ps = np.take_along_axis(pv, o, 1) * 10 / np.arange(1, 11)
-        adj = np.minimum.accumulate(ps[:, ::-1], axis=1)[:, ::-1]
-        bh = np.empty_like(adj)
-        np.put_along_axis(bh, o, adj, 1)
-        pred_bh = np.mean(bh[:, :5] >= 0.2)
-        rows.append(
-            f"n_min={n_min}: shadow rule {meas[('mwu_shadow_max', n_min)]:.2f} "
-            f"(pred {pred_sh:.2f}), BH 0.2 {meas[('mwu_bh_0.2', n_min)]:.2f} (pred {pred_bh:.2f})"
+def intercept_gap():
+    """E2: FNR under the XGBoost 2.x default intercept minus FNR under the prevalence
+    intercept, on the same data sets, by prevalence band (not a criteria row)."""
+    d = load("e2_sweep.csv.gz")
+    if d is None:
+        return
+    g = d[(d.importance == "gain") & (d.delta > 0)]
+    w = g.pivot_table(
+        index=["n_min", "p", "delta", "repeat"], columns="intercept", values="fnr_q100"
+    )
+    w["gap"] = w["auto"] - w["prior"]
+    for name, sel in (
+        ("Small", w.index.get_level_values("p") <= 0.01),
+        ("Large", w.index.get_level_values("p") >= 0.05),
+    ):
+        x = w[sel].gap
+        cell = x.groupby(level=["n_min", "p", "delta"]).mean()
+        macro(f"GapMean{name}", x.mean(), "{:+.2f}")
+        macro(f"GapSE{name}", x.std() / np.sqrt(len(x)), "{:.3f}")
+    cell = w.gap.groupby(level=["n_min", "p", "delta"]).mean()
+    top = cell.idxmax()
+    pr = w.groupby(level=["n_min", "p", "delta"])[["auto", "prior"]].mean().loc[top]
+    macro("GapTopNmin", int(top[0]), "{}")
+    macro("GapTopP", top[1], "{}")
+    macro("GapTopDelta", top[2], "{}")
+    macro("GapTopAuto", pr["auto"])
+    macro("GapTopPrior", pr["prior"])
+    lo = cell.idxmin()
+    pl = w.groupby(level=["n_min", "p", "delta"])[["auto", "prior"]].mean().loc[lo]
+    macro("GapLowNmin", int(lo[0]), "{}")
+    macro("GapLowP", lo[1], "{}")
+    macro("GapLowDelta", lo[2], "{}")
+    macro("GapLowAuto", pl["auto"])
+    macro("GapLowPrior", pl["prior"])
+    x3 = load("e2_sweep_xgb3.csv.gz")
+    macro("XgbThreeMaxDiff", "--", "{}")
+    macro("XgbThreeCells", "--", "{}")
+    if x3 is not None:
+        a = (
+            x3[(x3.importance == "gain") & (x3.delta > 0)]
+            .groupby(["n_min", "p", "delta"])
+            .fnr_q100.mean()
         )
-    emit(
-        "P16",
-        "Rank test FNR follows Prop 8 (z ~ N(sqrt(3s/pi),1)); at matched level it beats the "
-        "tree max-shadow rule (Cor 2)",
-        "; ".join(rows),
-        "agrees",
+        b = w.prior.groupby(level=["n_min", "p", "delta"]).mean().reindex(a.index)
+        macro("XgbThreeMaxDiff", float((a - b).abs().max()))
+        macro("XgbThreeCells", len(a), "{}")
+
+
+def run_time():
+    """Total wall time of the full (non-quick) runs, from the metadata files."""
+    times = {}
+    for f in sorted(RESULTS.glob("*.meta.json")):
+        if "quick" in f.name:
+            continue
+        m = json.loads(f.read_text())
+        if "wall_seconds" in m:
+            times[m.get("experiment", f.stem)] = m["wall_seconds"]
+    if not times:
+        return macro("RunTime", "--", "{}")
+    total = sum(times.values()) / 3600
+    top = max(times, key=times.get)
+    macro(
+        "RunTime",
+        f"The full set of experiments takes about {total:.0f} hours on four CPU cores, "
+        f"the longest being {top.split('_')[0].upper()} ({times[top] / 3600:.1f} hours); "
+        "every script also has a \\code{--quick} profile for a fast smoke test.",
+        "{}",
     )
 
 
-def p17():
-    d = pd.read_csv(RESULTS / "e4_mitigations.csv.gz")
-    g = d[d.method == "naive"].groupby("n_min").fnr.mean()
-    parts = [f"n_min={k}: {v:.2f} (root {root_fnr(int(k), 0.5, 10):.2f})" for k, v in g.items()]
-    emit(
-        "P17",
-        "Ensemble FNR is at least the root-split failure probability (Conj 2), "
-        "E4 one-shot rule, K=10, prevalence intercept",
-        "; ".join(parts),
-        "agrees (no proof)",
+# ------------------------------------------------------------------ output
+def holm(ps):
+    ids = [k for k, v in ps.items() if v is not None]
+    order = sorted(ids, key=lambda k: ps[k])
+    m, run, out = len(order), 0.0, {}
+    for i, k in enumerate(order):
+        run = max(run, min(1.0, (m - i) * ps[k]))
+        out[k] = run
+    return out
+
+
+def tex_escape(s):
+    return (
+        s.replace("\\", r"\textbackslash{}")
+        .replace("_", r"\_")
+        .replace("%", r"\%")
+        .replace("&", r"\&")
+        .replace("#", r"\#")
+        .replace("^", r"\^{}")
+        .replace(">=", r"$\ge$")
+        .replace("<=", r"$\le$")
     )
 
 
-if __name__ == "__main__":
-    LINES += ["| id | statement | measured | agreement |", "|---|---|---|---|"]
-    p1()
-    p2()
-    p3()
-    r = e1_root()
-    if r is not None:
-        p4_p5(r)
-        p6(r)
-    d = e2()
-    p7(d)
-    p8(d)
-    p9(d)
-    p10()
-    p11()
-    p12()
-    p13()
-    p14()
-    p15()
-    p16()
-    p17()
-    OUT.parent.mkdir(exist_ok=True)
-    OUT.write_text(
-        "# Appendix A numbers (generated by experiments/paper_numbers.py)\n\n"
-        + "\n".join(LINES)
+def write_outputs():
+    GEN.mkdir(parents=True, exist_ok=True)
+    adj = holm({k: v["p"] for k, v in ROWS.items()})
+    for k, v in ROWS.items():
+        v["p_holm"] = adj.get(k)
+    n_tests = len(adj)
+    n_rej = sum(1 for v in adj.values() if v < 0.05)
+    n_agree = sum(1 for v in ROWS.values() if v["verdict"].startswith("agrees"))
+    macro("AgreeRows", n_agree, "{}")
+    macro("TotalRows", len(ROWS), "{}")
+    macro("HolmTests", n_tests, "{}")
+    macro("HolmRejected", n_rej, "{}")
+
+    def key(pid):
+        return int(pid[1:])
+
+    lines = [
+        r"\begin{longtable}{@{}l p{0.17\textwidth} p{0.47\textwidth} l l@{}}",
+        r"\caption{Theory against simulation. Each rule was fixed in advance (\code{experiments/criteria.py}); "
+        r"the verdict applies it to the results, and $p$ is the Holm-adjusted p-value for exact agreement "
+        r"(-- where the comparison is deterministic).}\label{tab:agreement}\\",
+        r"\toprule",
+        r"Row & Statement and rule & Result & Verdict & $p$ \\",
+        r"\midrule\endfirsthead",
+        r"\toprule Row & Statement and rule & Result & Verdict & $p$ \\ \midrule\endhead",
+    ]
+    for pid in sorted(ROWS, key=key):
+        v = ROWS[pid]
+        lab = v["statement"].split(" ")[0]
+        rest = " ".join(v["statement"].split(" ")[1:])
+        stmt = rf"\cref{{{lab}}}{(' ' + tex_escape(rest)) if rest else ''}: {tex_escape(v['rule'])}"
+        p = "--" if v.get("p_holm") is None else f"{v['p_holm']:.2g}"
+        lines.append(
+            rf"{pid} & \raggedright {stmt} & \raggedright {tex_escape(v['measured'])} & {tex_escape(v['verdict'])} & {p} \\"
+        )
+        lines.append(r"\addlinespace")
+    lines += [r"\bottomrule", r"\end{longtable}"]
+    (GEN / "table_agreement.tex").write_text("\n".join(lines) + "\n")
+
+    words = "Zero One Two Three Four Five Six Seven Eight Nine".split()
+
+    def cs(name):  # LaTeX command names take letters only
+        return "".join(words[int(c)] if c.isdigit() else c for c in name if c.isalnum())
+
+    (GEN / "numbers.tex").write_text(
+        "% generated by experiments/paper_numbers.py; do not edit\n"
+        + "\n".join(rf"\newcommand{{\num{cs(k)}}}{{{v}}}" for k, v in sorted(MACROS.items()))
         + "\n"
     )
-    print("wrote", OUT)
+    JSON.write_text(json.dumps(dict(rows=ROWS, macros=MACROS), indent=1, default=float))
+    print(f"wrote {GEN / 'table_agreement.tex'}, {GEN / 'numbers.tex'}, {JSON}")
+
+
+ALL = dict(
+    P1=p1,
+    P2=p2,
+    P3=p3,
+    P4=p4,
+    P5=p5,
+    P6=p6,
+    P7=p7,
+    P8=p8,
+    P9=p9,
+    P10=p10,
+    P11=p11,
+    P12=p12,
+    P13=p13,
+    P14=p14,
+    P15=p15,
+)
+
+if __name__ == "__main__":
+    wanted = sys.argv[1:] or list(ALL)
+    if sys.argv[1:] and JSON.exists():
+        saved = json.loads(JSON.read_text())
+        ROWS.update(saved["rows"])
+        MACROS.update(saved["macros"])
+    for pid in wanted:
+        ALL[pid]()
+    fit_counts()
+    intercept_gap()
+    run_time()
+    write_outputs()

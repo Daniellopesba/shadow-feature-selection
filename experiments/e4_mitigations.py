@@ -1,4 +1,4 @@
-"""E4: mitigation strategies (paper Section 5).
+"""E4: mitigation strategies (paper: selection methods).
 
 Unlike E2, the data hold 5 informative AND 5 irrelevant *candidate*
 features, and every method builds its own shadows (permuted copies of the

@@ -85,10 +85,9 @@ What the table shows:
    in the strict version, because it holds out 30% of the already scarce
    positives. Its advantages are elsewhere: it is model-agnostic and immune
    to the cardinality bias of impurity importance [@strobl2007bias]. Neither
-   matters in this Gaussian simulation. We expected (P11) that it would avoid
-   the memorisation part of the failure and win outright. It did not,
-   consistent with Section 4.4's finding that memorisation is a secondary
-   effect under the prevalence intercept.
+   matters in this Gaussian simulation. Avoiding training-set memorisation
+   does not make it win (P11), consistent with Section 4.4's finding that
+   memorisation is a secondary effect under the prevalence intercept.
 
 ## 5.1 Number of rounds (E7)
 

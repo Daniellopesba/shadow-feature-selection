@@ -189,8 +189,8 @@ process $k_L$ converges to $N_\delta$ and the bracket converges uniformly. $\squ
 *Remarks.* (i) The limit law of $M$ has atoms. With positive probability
 (1–7% in our simulations) the null supremum sits at the boundary
 $u = w/n_{\min}$ and takes one of finitely many values, so two features can
-tie exactly. XGBoost breaks exact ties by column order, so the experiments
-randomise column order. (ii) The theorem gives no rate. By simulation, at
+tie exactly. XGBoost breaks exact ties by column order, so E1 (Section 4)
+randomises column order. (ii) The theorem gives no rate. By simulation, at
 $n_{\min} = 50$ the 95th percentile of the null supremum is 7.3, 8.0, 8.8 and 8.9
 for $n = 100, 200, 500, 10^5$, against 9.1 in the limit. So "$n_{\min}$ governs"
 is accurate once $\hat p \lesssim 0.1$. (iii) For a null feature the limit is

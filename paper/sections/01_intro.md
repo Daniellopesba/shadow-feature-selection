@@ -61,8 +61,8 @@ only slowly with $n_{\min}$. Two further factors make it worse:
    evidence for them.
 2. **Experiments that test each statement (Section 4).** About 57,000 fitted
    models, two imbalance regimes chosen to overlap in $n_{\min}$, four learners.
-   Every proved statement was turned into a numerical prediction before the
-   experiment; Appendix A lists prediction, measurement and verdict.
+   Every proved statement yields a numerical prediction; Appendix A lists
+   each prediction next to its measurement.
 3. **Mitigations with both error rates (Section 5).** We compare eight
    tree-based strategies and a rank-test baseline on false negative rate *and*
    false positive rate.

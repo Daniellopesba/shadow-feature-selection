@@ -20,8 +20,8 @@ abstract: |
   $\Phi(\sqrt{3s/\pi} - z_{\alpha/2})$, against a non-centrality of at most $(2/\pi)s$
   for any single split. XGBoost 2.x's default intercept, about 0.12 whenever
   the prevalence is small, raises the chi-square needed for a first split to
-  about $e^{-2}\lambda/\hat p$. Every result was stated as a prediction and tested
-  in about 57,000 fitted models: the limit predicts XGBoost's root choice
+  about $e^{-2}\lambda/\hat p$. Every result is checked
+  against about 57,000 fitted models: the limit predicts XGBoost's root choice
   within binomial noise, the rule's false positive rate is 0.083 against a
   bound of 0.091, and the rank test's error rates match its formula. For
   full ensembles, which we do not prove anything about beyond a gain

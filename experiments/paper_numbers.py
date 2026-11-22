@@ -1,32 +1,31 @@
-"""The theory <-> experiment ledger.
+"""Recompute the numbers in the paper's Appendix A (theory against simulation).
 
-Each entry is a prediction derived in the paper's Section 3, the experiment
-that tests it, the measured value, and a verdict. Run after the experiments:
+Each row is a quantitative statement from Section 3, the measured value, and
+how well they agree. Run after the experiments:
 
-    python ledger.py            # writes ../docs/ledger_measurements.md
+    python paper_numbers.py     # writes ../results/paper_numbers.md
 
-The prose ledger (docs/LEDGER.md and paper Appendix A) quotes these numbers.
-Predictions P1, P2 and P6 are recomputed here directly (small, seconds); the
-rest read results/*.csv.gz.
+P1, P2 and P6 are recomputed here directly (small, seconds); the rest read
+results/*.csv.gz.
 """
 
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from common import RESULTS, ROOT
+from common import RESULTS
 from sklearn.isotonic import IsotonicRegression
 
 from shadowselect.simulation import make_dataset
 from shadowselect.theory import detection_probability, pearson_chi2_2x2, split_gains
 
-OUT = ROOT / "docs" / "ledger_measurements.md"
+OUT = RESULTS / "paper_numbers.md"
 LINES: list[str] = []
 
 
-def emit(pid, claim, measured, verdict):
-    LINES.append(f"| {pid} | {claim} | {measured} | {verdict} |")
-    print(pid, "|", measured, "|", verdict)
+def emit(pid, claim, measured, agreement):
+    LINES.append(f"| {pid} | {claim} | {measured} | {agreement} |")
+    print(pid, "|", measured, "|", agreement)
 
 
 def iso_r2(x, y, increasing=False):
@@ -62,7 +61,7 @@ def p1():
         "P1",
         "XGBoost's reported root gain equals Pearson X^2 (prior intercept, lambda=0)",
         f"max relative error {max(errs):.1e} over 5 fits",
-        "confirmed",
+        "agrees",
     )
 
 
@@ -78,7 +77,7 @@ def p2():
             gl = np.sum(p - y[:pos])
             vals[r] = gl**2 / (p * (1 - p)) * (1 / pos + 1 / (n - pos))
         res.append(f"{vals.mean():.3f} vs {n / (n - 1):.3f}")
-    emit("P2", "E[Gain] at a fixed split = n/(n-1), any n_min", "; ".join(res), "confirmed")
+    emit("P2", "E[Gain] at a fixed split = n/(n-1), any n_min", "; ".join(res), "agrees")
 
 
 # ---------------------------------------------------------------- P3-P6 (E1)
@@ -92,7 +91,7 @@ def p3():
         "Tests the finite-n formula (3) by simulation, not XGBoost itself",
         f"median varies by at most {100 * spread.max():.1f}% across n in 1e3..1e5 "
         f"(n_min 5..1000); median grows {t.q50.min():.1f} -> {t.q50.max():.1f}",
-        "confirmed",
+        "agrees",
     )
     a = pd.read_csv(RESULTS / "e1_null_max.csv")
     a = a[(a.intercept == "auto")].groupby("n").q50.median()
@@ -136,7 +135,7 @@ def p4_p5(r):
             f"chi2 = {chi2:.0f} on {len(s)} df; worst "
             f"{worst.root_is_real:.2f} vs {worst.predicted:.2f} at n_min={worst.n_min}, "
             f"p={worst.p}, delta={worst.delta}",
-            "confirmed" if mae < 0.06 else "partly",
+            "agrees" if mae < 0.06 else "partial",
         )
     s = g[g.tree_method == "exact"]
     r_s = iso_r2(s.n_min * s.delta**2, s.root_is_real, increasing=True)
@@ -145,7 +144,7 @@ def p4_p5(r):
         "P5",
         "Root detection is organised by s = n_min*delta^2, not by p",
         f"monotone-fit R^2: s {r_s:.2f}, p {r_p:.2f}",
-        "confirmed" if r_s > 0.85 else "partly",
+        "agrees" if r_s > 0.85 else "partial",
     )
     return g
 
@@ -190,7 +189,7 @@ def p6(r):
         f"{agree}/{n_runs}. When the exact-search root does split at p=0.001, a noise feature "
         f"wins {meas[('exact', 0.001)][1]:.0%} of the time. Prevalence intercept: no-split rate "
         f"{pr:.2f}",
-        "confirmed (exact); hist removes the extreme splits, so it almost never splits",
+        "agrees (exact); hist removes the extreme splits, so it almost never splits",
     )
 
 
@@ -213,7 +212,7 @@ def p7(d):
         f"mean FNR gap auto-prior: {small:+.2f} for p<=0.01, {large:+.2f} for p>=0.05; "
         f"largest {worst.auto:.2f} vs {worst.prior:.2f} (n_min={worst.n_min}, p={worst.p}, "
         f"delta={worst.delta})",
-        "confirmed" if small > 0.05 > abs(large) else "partly",
+        "agrees" if small > 0.05 > abs(large) else "partial",
     )
 
 
@@ -263,7 +262,7 @@ def p8(d):
         "P8",
         "Full 300-round ensemble FNR is organised by s = n_min*delta^2 (Conjecture 2)",
         "isotonic R^2 of cell-mean FNR on " + "; ".join(out),
-        "supported (prior); partly (auto)",
+        "strong (prior); partial (auto)",
     )
 
 
@@ -300,12 +299,12 @@ def p10():
     au = g[(g.intercept == "auto") & (g.p == 0.001)].groupby("rounds").fnr_q100.mean()
     emit(
         "P10",
-        "Later rounds: memorisation raises FNR after the signal is learned (Sec 3.6)",
+        "Late-round memorisation and FNR (Sec 3.8)",
         f"prior: mean FNR {pr[1].mean():.2f} at k=1, {pr[3].mean():.2f} at k=3, "
         f"{pr[30].mean():.2f} at k=30, {late.mean():.2f} at k=300; paired change k=30->300 "
         f"{diff.mean():+.3f} +- {diff.std() / np.sqrt(len(diff)):.3f} (SE, {len(diff)} cells); "
         f"auto, p=0.001: " + ", ".join(f"k={k}: {v:.2f}" for k, v in au.items()),
-        "partly: under the prior intercept most of the failure is present by round 3 and "
+        "partial: under the prior intercept most of the failure is present by round 3 and "
         "later rounds add a small, significant increase; the large memorisation spike is an "
         "auto-intercept, early-round effect",
     )
@@ -324,10 +323,9 @@ def p11():
     ok = perm.fnr < naive.fnr and perm.fpr <= naive.fpr + 0.05
     emit(
         "P11",
-        "Held-out permutation importance avoids training-set memorisation, so it "
-        "loses fewer relevant features at a similar FPR (n_min<=100)",
+        "Held-out permutation importance against training gain: FNR at a similar FPR (n_min<=100)",
         txt,
-        "confirmed" if ok else "not confirmed",
+        "permutation better" if ok else "no advantage",
     )
 
 
@@ -350,7 +348,7 @@ def p12():
         "fixed n_min (Prop 3 scope)",
         f"mean FNR(p=0.01) - FNR(p=0.1) at equal n_min: {txt}. At n_min>=250 only: "
         + "; ".join(f"{b} ({imp}) {v:+.2f}" for (b, imp), v in hi.items()),
-        "partly: LightGBM shows the largest gap (both leaf settings) and the only one that "
+        "partial: LightGBM shows the largest gap (both leaf settings) and the only one that "
         "persists at n_min>=250; every learner shows some gap at n_min 50-100; open",
     )
 
@@ -379,7 +377,7 @@ def p13():
         "one-shot XGBoost methods (E4): "
         + ", ".join(f"{m} {v:.3f}" for m, v in g.items())
         + f" (pooled {one.fpr.mean():.3f} +- {se:.3f}); rank-test shadow rule (E6) {m6:.3f}",
-        "confirmed",
+        "agrees",
     )
 
 
@@ -400,7 +398,7 @@ def p14():
         "More shadows raise the bar: FNR increases with K (Cor 1); ensemble at or above "
         "the root-split prediction (Conj 2)",
         "; ".join(parts),
-        f"confirmed (monotone in K: {mono}; ensemble >= root: {above})",
+        f"agrees (monotone in K: {mono}; ensemble >= root: {above})",
     )
 
 
@@ -471,7 +469,7 @@ def p16():
         "Rank test FNR follows Prop 8 (z ~ N(sqrt(3s/pi),1)); at matched level it beats the "
         "tree max-shadow rule (Cor 2)",
         "; ".join(rows),
-        "confirmed",
+        "agrees",
     )
 
 
@@ -484,12 +482,12 @@ def p17():
         "Ensemble FNR is at least the root-split failure probability (Conj 2), "
         "E4 one-shot rule, K=10, prevalence intercept",
         "; ".join(parts),
-        "supported",
+        "agrees (no proof)",
     )
 
 
 if __name__ == "__main__":
-    LINES += ["| id | prediction | measured | verdict |", "|---|---|---|---|"]
+    LINES += ["| id | statement | measured | agreement |", "|---|---|---|---|"]
     p1()
     p2()
     p3()
@@ -511,6 +509,8 @@ if __name__ == "__main__":
     p17()
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(
-        "# Ledger measurements (generated by experiments/ledger.py)\n\n" + "\n".join(LINES) + "\n"
+        "# Appendix A numbers (generated by experiments/paper_numbers.py)\n\n"
+        + "\n".join(LINES)
+        + "\n"
     )
     print("wrote", OUT)

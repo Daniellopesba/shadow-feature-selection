@@ -42,8 +42,7 @@ not depend on imbalance at all; imbalance only takes away power. For full
 300-round ensembles, $s$ explains 94% of the variance in measured failure
 rates (90% out of sample), and a proof remains open.
 
-Part of what looked like an imbalance effect in earlier experiments,
-including the first draft of this paper, was the default intercept of
+Much of what looks like an imbalance effect in practice is the default intercept of
 XGBoost 2.x, which is about 0.12 whenever $p$ is small. Setting `base_score`
 to the prevalence removes most of it.
 

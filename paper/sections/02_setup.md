@@ -44,7 +44,7 @@ We report both error rates:
 * **false positive rate (FPR):** fraction of irrelevant candidates kept.
 
 In the main sweep (Section 4.3) the irrelevant features themselves serve as
-the shadows, as in the earlier draft of this paper. There FPR is not defined
+the shadows. There FPR is not defined
 and we report FNR only. The mitigation study (Section 5) separates
 irrelevant candidates from method-generated shadows and reports both rates.
 

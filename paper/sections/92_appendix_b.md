@@ -19,7 +19,7 @@ python e6_univariate.py                 # about 2 min
 python e7_rounds.py                     # about 30 min
 python e8_many_shadows.py               # about 2 min
 python make_figures.py                  # figures/ and figures/tables.md
-python ledger.py                        # docs/ledger_measurements.md (Appendix A numbers)
+python paper_numbers.py                 # results/paper_numbers.md (Appendix A numbers)
 
 cd ../paper && ./build.sh               # paper/build/paper.docx and paper.html
 ```

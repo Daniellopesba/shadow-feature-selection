@@ -1,9 +1,8 @@
 # 4. Experiments: testing the theory
 
-Section 3 makes specific predictions. This section tests each one against
-simulation. Where the data disagreed with an earlier version of the theory,
-we changed the theory and say so. Appendix A lists every prediction with the
-measured value and a verdict.
+Section 3 makes specific quantitative statements. This section compares
+each one with simulation. Appendix A lists every comparison, numbered
+P1–P17, with the predicted and measured values.
 
 ## 4.1 Protocol and reproducibility
 
@@ -13,9 +12,11 @@ scenario's parameters and the repeat index, so every run is bit-for-bit
 reproducible with the pinned library versions (`requirements-experiments.txt`:
 Python 3.13, NumPy 2.5, scikit-learn 1.9, XGBoost 2.1.3, LightGBM 4.7). Each
 experiment is one script in `experiments/` that writes a tidy per-repeat
-table to `results/`. `make_figures.py` and `ledger.py` produce every figure,
+table to `results/`. `make_figures.py` and `paper_numbers.py` produce every figure,
 table and number quoted here. The full set runs in about 1.5 hours on four
-CPU cores. Each script also has a `--quick` profile that CI runs.
+CPU cores. Each script also has a `--quick` profile that CI runs. E1
+randomises the column order of every fit, as (A2) in Section 3.6 requires;
+the other experiments use a fixed order, which matters only for exact ties.
 
 | id | question | design | fits |
 |---|---|---|---|
@@ -118,13 +119,12 @@ decreasing in $1/p$ explains nothing, and FNR increasing in $1/p$ explains
 these cells, FNR is 64–84% for $s < 5$, 22–67% (median 35%) for $s$ between 10
 and 25, and at most 4% for $s > 60$ (Section 6, Rule 2).
 
-**The intercept accounts for the fraud-regime gap (P7).** The earlier draft
-of this paper, and the first version of these experiments, used XGBoost's
-automatic intercept. They found the fraud regime failing more often than the
-credit regime at the same $n_{\min}$, and attributed that to "a small residual
-penalty" of extreme majority counts. Proposition 5 predicted instead that the
-gap comes from the misestimated intercept and should disappear with
-`base_score` $= \hat p$. It does, for the most part. Averaged over cells with
+**The intercept accounts for the fraud-regime gap (P7).** Under XGBoost's
+automatic intercept the fraud regime fails more often than the credit regime
+at the same $n_{\min}$. This looks like a residual penalty of extreme majority
+counts. Proposition 5 says instead that the gap comes from the misestimated
+intercept and should disappear with `base_score` $= \hat p$. It does, for the
+most part. Averaged over cells with
 $p \le 0.01$, the automatic intercept raises FNR by 0.10. For $p \ge 0.05$ the
 difference is 0.01. The largest single effect is at $n = 200{,}000$, $p = 0.005$,
 $\delta = 0.3$: FNR 0.61 under the automatic intercept and 0.04 with the prevalence
@@ -166,11 +166,9 @@ them large.
 
 ## 4.4 E3: when in boosting does it fail?
 
-An earlier version of Section 3 predicted that memorisation in later rounds
-would push FNR up after the signal was learned (P10). The data only partly
-agree, and the disagreement changed our account. (This experiment was rerun
-after a fix so that a model with no splits counts as missing, not as a
-failure.)
+E3 asks whether memorisation in later rounds pushes FNR up after the signal
+is learned (P10). A model with no splits yet counts as missing, not as a
+failure. The answer depends on the intercept.
 
 * **With the prevalence intercept, most of the failure is there from the
   start.** Averaged over cells, FNR is 0.46 using only the first tree, 0.40
@@ -189,7 +187,7 @@ failure.)
 
 ![**Figure 4.** FNR of the max-shadow rule using importances from the first $k$ boosting rounds only. Solid: prevalence intercept, dashed: automatic intercept.](figures/fig5_rounds.png)
 
-We therefore present memorisation (Section 3.8) as a second-order effect
+Memorisation (Section 3.8) is therefore a second-order effect
 under the prevalence intercept, visible at weak signal and small $p$, and as
 the main early-round effect under the automatic intercept.
 

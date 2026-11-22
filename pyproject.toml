@@ -1,32 +1,51 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "shadowselect"
-version = "0.1.0"
+version = "0.2.0"
 description = "Shadow-feature selection with diagnostics for class imbalance (minority-count aware)."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Daniel Lopes" }]
 keywords = ["feature selection", "boruta", "shadow features", "class imbalance", "gradient boosting"]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Intended Audience :: Science/Research",
+    "Typing :: Typed",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-dependencies = ["numpy>=1.23", "scipy>=1.9", "scikit-learn>=1.2"]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.11",
+    "scikit-learn>=1.6",
+    "pandas>=2.0",
+    "joblib>=1.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/Daniellopesba/shadow-feature-selection"
+Paper = "https://github.com/Daniellopesba/shadow-feature-selection/blob/main/paper/paper.pdf"
+Issues = "https://github.com/Daniellopesba/shadow-feature-selection/issues"
 
 [project.optional-dependencies]
 xgboost = ["xgboost>=1.7"]
 lightgbm = ["lightgbm>=3.3"]
 experiments = ["xgboost==2.1.3", "pandas>=2.0", "matplotlib>=3.7", "pyyaml>=6.0", "joblib>=1.3"]
-dev = ["pytest>=7", "ruff>=0.4", "xgboost>=1.7", "lightgbm>=3.3", "pandas>=1.5"]
+dev = ["pytest>=7", "ruff>=0.4", "xgboost>=1.7", "lightgbm>=3.3", "build", "twine"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+shadowselect = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

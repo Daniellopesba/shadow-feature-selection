@@ -1,6 +1,6 @@
 """Closed-form and Monte Carlo tools for the paper's first-round analysis.
 
-Conventions (paper, Section 3). "Gain" is what XGBoost computes and reports,
+Conventions as in the paper. "Gain" is what XGBoost computes and reports,
 
     Gain = G_L^2/(H_L+lam) + G_R^2/(H_R+lam) - G^2/(H+lam),
 
@@ -9,27 +9,27 @@ tree every sample has gradient ``g_i = b - y_i`` and Hessian ``b (1 - b)``,
 where ``b`` is the base score. Functions below return this quantity; some
 variable names still say ``gain`` for historical reasons.
 
-* Proposition 1: with ``lam = 0``, Gain equals Pearson's chi-square of the
+* Gain is Pearson chi-square: with ``lam = 0``, Gain equals Pearson's chi-square of the
   2x2 split-by-class table times ``p (1-p) / (b (1-b))``.
-* Proposition 2: for a null feature at a fixed split, ``E[Gain] = n / (n-1)``
+* Exact null mean: for a null feature at a fixed split, ``E[Gain] = n / (n-1)``
   (prevalence intercept, ``lam = 0``).
-* Proposition 4: non-centrality ``n p (1-p) (Phi(t) - Phi(t-delta))^2 / (q (1-q))``;
+* Signal at a fixed threshold: non-centrality ``n p (1-p) (Phi(t) - Phi(t-delta))^2 / (q (1-q))``;
   for small ``delta`` (about 0.3 or less) and small ``p`` its maximum is about
   ``(2/pi) n_min delta^2``.
-* Theorem 1: as ``n -> inf`` with ``n_min`` fixed (prevalence intercept), the
+* Small-prevalence limit: as ``n -> inf`` with ``n_min`` fixed (prevalence intercept), the
   gain process converges to ``Gamma_delta(u)``; see :func:`limit_max_gain`.
-* Theorem 2: with ``s = n_min delta^2`` fixed and ``n_min -> inf``, the gain
+* Scaling variable s: with ``s = n_min delta^2`` fixed and ``n_min -> inf``, the gain
   process on any window ``[eps, 1-eps]`` converges to
   ``(B(u) - sqrt(s) psi(u))^2 / (u (1-u))``; see :func:`limit_fixed_threshold_noncentrality`.
-* Proposition 5: under a wrong intercept every split pays a toll of about
+* Intercept toll (XGBoost 1.x/2.x): under a wrong intercept every split pays a toll of about
   ``lam * r^2`` with ``r = (b - p) / (b (1 - b))``.
-* Proposition 6: a null candidate beats the maximum of ``S`` shadows with
+* Level of the max-shadow rule: a null candidate beats the maximum of ``S`` shadows with
   probability at most ``1 / (S + 1)``; an informative one with probability
   ``E[F_0(T)^S]`` (:func:`detection_probability`).
-* Proposition 8: in the same limit the Mann-Whitney z statistic is
+* Mann-Whitney power: in the same limit the Mann-Whitney z statistic is
   ``N(sqrt(3 s / pi), 1)``; see :func:`rank_test_power`.
 
-The null maximum grows slowly with ``n_min`` (Conjecture 1: like
+The null maximum grows slowly with ``n_min`` (the paper conjectures: like
 ``2 log log n_min``), so detectability is governed to first order by
 ``n_min * delta^2``.
 """
@@ -94,8 +94,9 @@ def pearson_chi2_2x2(x: np.ndarray, y: np.ndarray, threshold: float) -> float:
     x = np.asarray(x)
     y = np.asarray(y).astype(bool)
     left = x <= threshold
-    a, b = np.sum(left & y), np.sum(left & ~y)
-    c, d = np.sum(~left & y), np.sum(~left & ~y)
+    # float counts: int64 products overflow above about 50,000 rows
+    a, b = float(np.sum(left & y)), float(np.sum(left & ~y))
+    c, d = float(np.sum(~left & y)), float(np.sum(~left & ~y))
     n = a + b + c + d
     denom = (a + b) * (c + d) * (a + c) * (b + d)
     return float(n * (a * d - b * c) ** 2 / denom) if denom > 0 else 0.0
@@ -266,7 +267,7 @@ def min_detectable_delta(n_min: int, null_max: float, p: float = 0.0) -> float:
 def limit_fixed_threshold_noncentrality(n_min: int, delta: float, u) -> np.ndarray:
     """Non-centrality of the limit gain at a fixed threshold ``u`` (``lam = 0``).
 
-    In the limit of Theorem 1, ``N_delta(u) ~ Binomial(n_min, q)`` with
+    In the small-prevalence limit, ``N_delta(u) ~ Binomial(n_min, q)`` with
     ``q = Phi(Phi^{-1}(u) - delta)``, so the standardised squared deviation has
     non-centrality ``n_min (q - u)^2 / (u (1 - u))``. Its maximum over ``u`` is
     ``(2/pi) n_min delta^2 (1 + o(1))`` as ``delta -> 0``, at ``u = 1/2``.
@@ -277,7 +278,7 @@ def limit_fixed_threshold_noncentrality(n_min: int, delta: float, u) -> np.ndarr
 
 
 def rank_test_power(s: float, alpha: float = 0.05) -> float:
-    """Asymptotic power of the two-sided Mann-Whitney test (Proposition 8).
+    """Asymptotic power of the two-sided Mann-Whitney test (the paper's rank-test power result).
 
     With ``s = n_min * delta^2`` fixed and ``n_min -> inf`` (and ``p -> 0``),
     the standardised statistic is ``N(sqrt(3 s / pi), 1)``.

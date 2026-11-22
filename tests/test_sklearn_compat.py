@@ -9,7 +9,8 @@ from shadowselect import ShadowFeatureSelector, UnivariateScreen
         ShadowFeatureSelector(
             RandomForestClassifier(n_estimators=5, random_state=0),
             importance="native",
-            n_iter=2,
+            n_iter=12,
+            n_shadows=3,
             keep_tentative=True,
             min_minority=0,
             random_state=0,

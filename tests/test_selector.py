@@ -259,7 +259,7 @@ def test_sparse_input(easy):
 def test_categorical_dataframe_with_xgboost(easy):
     xgb = pytest.importorskip("xgboost")
     X, y = easy
-    df = pd.DataFrame(X[:, :4], columns=list("abcd"))
+    df = pd.DataFrame(X[:, :4].copy(), columns=list("abcd"))
     rng = np.random.default_rng(0)
     neg = rng.choice(["u", "v", "w"], len(y), p=[0.15, 0.15, 0.7])
     df["cat_signal"] = pd.Categorical(np.where(y == 1, rng.choice(["u", "v"], len(y)), neg))

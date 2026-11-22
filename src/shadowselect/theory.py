@@ -7,7 +7,7 @@ Conventions (paper, Section 3). "Gain" is what XGBoost computes and reports,
 (the XGBoost paper writes half of this; the software does not). In the first
 tree every sample has gradient ``g_i = b - y_i`` and Hessian ``b (1 - b)``,
 where ``b`` is the base score. Functions below return this quantity; some
-variable names still say ``two_gain`` for historical reasons.
+variable names still say ``gain`` for historical reasons.
 
 * Proposition 1: with ``lam = 0``, Gain equals Pearson's chi-square of the
   2x2 split-by-class table times ``p (1-p) / (b (1-b))``.
@@ -18,11 +18,20 @@ variable names still say ``two_gain`` for historical reasons.
   ``(2/pi) n_min delta^2``.
 * Theorem 1: as ``n -> inf`` with ``n_min`` fixed (prevalence intercept), the
   gain process converges to ``Gamma_delta(u)``; see :func:`limit_max_gain`.
+* Theorem 2: with ``s = n_min delta^2`` fixed and ``n_min -> inf``, the gain
+  process on any window ``[eps, 1-eps]`` converges to
+  ``(B(u) - sqrt(s) psi(u))^2 / (u (1-u))``; see :func:`limit_fixed_threshold_noncentrality`.
 * Proposition 5: under a wrong intercept every split pays a toll of about
   ``lam * r^2`` with ``r = (b - p) / (b (1 - b))``.
+* Proposition 6: a null candidate beats the maximum of ``S`` shadows with
+  probability at most ``1 / (S + 1)``; an informative one with probability
+  ``E[F_0(T)^S]`` (:func:`detection_probability`).
+* Proposition 8: in the same limit the Mann-Whitney z statistic is
+  ``N(sqrt(3 s / pi), 1)``; see :func:`rank_test_power`.
 
-The null maximum grows slowly with ``n_min`` (roughly like ``2 log log n_min``),
-so detectability is governed to first order by ``n_min * delta^2``.
+The null maximum grows slowly with ``n_min`` (Conjecture 1: like
+``2 log log n_min``), so detectability is governed to first order by
+``n_min * delta^2``.
 """
 
 from __future__ import annotations
@@ -40,6 +49,8 @@ __all__ = [
     "limit_max_gain",
     "detection_probability",
     "detectable_delta",
+    "limit_fixed_threshold_noncentrality",
+    "rank_test_power",
 ]
 
 
@@ -52,7 +63,7 @@ def split_gains(
 ) -> tuple[np.ndarray, np.ndarray]:
     """XGBoost first-round split gains (as reported by XGBoost) for every threshold.
 
-    Returns ``(thresholds, two_gain)`` where ``two_gain[k]`` is
+    Returns ``(thresholds, gain)`` where ``gain[k]`` is
     ``G_L^2/(H_L+lam) + G_R^2/(H_R+lam) - G^2/(H+lam)`` for the split
     ``x <= thresholds[k]``. Ties in ``x`` are respected. Splits violating
     ``min_child_weight`` (on Hessian sums) are dropped. ``base_score`` is the
@@ -73,9 +84,9 @@ def split_gains(
     HL = h * (valid + 1)
     GR, HR = G - GL, H - HL
     ok = (HL >= min_child_weight) & (HR >= min_child_weight)
-    two_gain = GL**2 / (HL + lam) + GR**2 / (HR + lam) - G**2 / (H + lam)
+    gain = GL**2 / (HL + lam) + GR**2 / (HR + lam) - G**2 / (H + lam)
     thr = 0.5 * (xs[valid] + xs[valid + 1])
-    return thr[ok], two_gain[ok]
+    return thr[ok], gain[ok]
 
 
 def pearson_chi2_2x2(x: np.ndarray, y: np.ndarray, threshold: float) -> float:
@@ -120,7 +131,7 @@ def max_null_gain(
     base_score: float | None = None,
     seed: int | None = 0,
 ) -> np.ndarray:
-    """Monte Carlo draws of ``max_t 2*Gain(t)`` for one uninformative feature.
+    """Monte Carlo draws of ``max_t Gain(t)`` for one uninformative feature.
 
     Under the null only the rank pattern of the positives matters, so each
     draw places ``n_min`` positives uniformly at random among ``n`` ordered
@@ -142,8 +153,8 @@ def max_null_gain(
         g = b - y
         G = g.sum()
         GL = np.cumsum(g)[:-1]
-        two_gain = GL**2 / (HL + lam) + (G - GL) ** 2 / (HR + lam) - G**2 / (H + lam)
-        out[r] = two_gain[ok].max() if ok.any() else 0.0
+        gain = GL**2 / (HL + lam) + (G - GL) ** 2 / (HR + lam) - G**2 / (H + lam)
+        out[r] = gain[ok].max() if ok.any() else 0.0
     return out
 
 
@@ -157,7 +168,7 @@ def limit_max_gain(
     seed: int | None = 0,
 ) -> np.ndarray:
     """Draws of ``sup_u Gamma_delta(u)``, the small-prevalence limit of the best
-    first-round split (``2*Gain`` units, intercept at the prevalence).
+    first-round split (gain as XGBoost reports it, eq. (1); intercept at the prevalence).
 
     ``Gamma_delta(u) = (N(u) - n_min u)^2 [1/(n_min u + lam) + 1/(n_min (1-u) + lam)]``
     on ``u in [w/n_min, 1 - w/n_min]``, where ``N(u)`` counts the positives with
@@ -244,9 +255,33 @@ def min_detectable_delta(n_min: int, null_max: float, p: float = 0.0) -> float:
 
     Solves ``1 + nc* = null_max`` with ``nc* = (2/pi) n_min (1-p) delta^2``
     (small-``delta`` approximation). ``null_max`` is a quantile of the null
-    distribution of ``max_t 2*Gain(t)``, e.g. from :func:`max_null_gain`.
+    distribution of ``max_t Gain(t)``, e.g. from :func:`max_null_gain`.
     """
     if n_min <= 0:
         return float("inf")
     excess = max(null_max - 1.0, 0.0)
     return float(np.sqrt(excess / ((2 / np.pi) * n_min * (1 - p))))
+
+
+def limit_fixed_threshold_noncentrality(n_min: int, delta: float, u) -> np.ndarray:
+    """Non-centrality of the limit gain at a fixed threshold ``u`` (``lam = 0``).
+
+    In the limit of Theorem 1, ``N_delta(u) ~ Binomial(n_min, q)`` with
+    ``q = Phi(Phi^{-1}(u) - delta)``, so the standardised squared deviation has
+    non-centrality ``n_min (q - u)^2 / (u (1 - u))``. Its maximum over ``u`` is
+    ``(2/pi) n_min delta^2 (1 + o(1))`` as ``delta -> 0``, at ``u = 1/2``.
+    """
+    u = np.asarray(u, dtype=float)
+    q = stats.norm.cdf(stats.norm.ppf(u) - delta)
+    return n_min * (q - u) ** 2 / (u * (1 - u))
+
+
+def rank_test_power(s: float, alpha: float = 0.05) -> float:
+    """Asymptotic power of the two-sided Mann-Whitney test (Proposition 8).
+
+    With ``s = n_min * delta^2`` fixed and ``n_min -> inf`` (and ``p -> 0``),
+    the standardised statistic is ``N(sqrt(3 s / pi), 1)``.
+    """
+    mu = np.sqrt(3.0 * s / np.pi)
+    z = stats.norm.ppf(1 - alpha / 2)
+    return float(stats.norm.cdf(mu - z) + stats.norm.cdf(-mu - z))

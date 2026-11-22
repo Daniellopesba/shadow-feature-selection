@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p build
-SECTIONS=(sections/0*.md sections/90_references.md sections/91_appendix_a.md sections/92_appendix_b.md)
+SECTIONS=(sections/0*.md sections/90_references.md sections/91_appendix_a.md sections/92_appendix_b.md sections/93_appendix_c.md)
 COMMON=(metadata.yaml "${SECTIONS[@]}" --citeproc --bibliography=references.bib
         --resource-path=.:..)
 pandoc "${COMMON[@]}" -o build/paper.docx

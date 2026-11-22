@@ -2,7 +2,7 @@
   "experiment": "e3_boosting_rounds",
   "n_scenarios": 32,
   "n_tasks": 480,
-  "wall_seconds": 72.9,
+  "wall_seconds": 150.6,
   "versions": {
     "python": "3.13.18",
     "numpy": "2.5.3",

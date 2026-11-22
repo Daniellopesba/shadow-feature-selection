@@ -29,40 +29,49 @@ among 1,000 loans ($n_{\min} = 50$) and a fraud model with 0.1% fraud among
 
 The mechanism is not that noise features get more important as $p$ shrinks.
 Under the null, a split on an uninformative feature has the same expected gain
-at any imbalance (Proposition 2). What changes is that an informative
-feature's advantage shrinks with $n_{\min}$, while the best split that pure
-noise can find stays roughly the same size. Two further, practical factors
-make it worse:
+at any imbalance (Proposition 2), and the shadow rule keeps an irrelevant
+feature with the same probability at any imbalance (Proposition 6). What
+changes is the informative feature's advantage: it scales with
+$s = n_{\min}\delta^2$ (Theorem 2), while the best split pure noise can find grows
+only slowly with $n_{\min}$. Two further factors make it worse:
 
-1. Boosting rounds after the signal is learned spend their splits memorising
-   the few positives. Those splits land on informative and noise features
-   alike, so the importance shares converge.
-2. In XGBoost 2.0 and 2.1, the default starting prediction is about 0.12 for
-   any small $p$. That disables the protection `min_child_weight` normally
-   gives against splits isolating a handful of samples, and makes failure
-   depend on $n$ as well as $n_{\min}$.
+1. In XGBoost 2.0 and 2.1, the default starting prediction is about 0.12 for
+   any small $p$. That raises the evidence needed for the first splits
+   (Proposition 5) and disables the protection `min_child_weight` normally
+   gives against splits isolating a handful of samples (Proposition 3).
+2. Later boosting rounds memorise the few positives, and those splits land on
+   informative and noise features alike. This effect is second-order under
+   a correct intercept (Section 4.4).
 
 ## 1.3 Contributions
 
-1. **Theory of the first boosting round (Section 3).** We show that XGBoost's
-   first-round split gain is exactly Pearson's chi-square statistic for the
-   split-by-class table (Proposition 1). In the small-prevalence limit, the
-   root split's behaviour depends on the data only through $n_{\min}$ and the
-   effect size (Theorem 1). The informative feature's advantage scales as
-   $n_{\min}\delta^2$ (Proposition 4). We also show how a misestimated intercept
-   weakens `min_child_weight` (Proposition 3).
-2. **Controlled experiments (Section 4).** About 600 simulation scenarios and
-   50,000 fitted models, two imbalance regimes chosen to overlap in
-   $n_{\min}$, and four learners. We confirm the first-round theory, measure how
-   later rounds amplify the failure, and isolate the intercept effect.
+1. **Theory (Section 3), with proofs.** XGBoost's first-round split gain is
+   exactly Pearson's chi-square statistic for the split-by-class table
+   (Proposition 1). In the small-prevalence limit, the root split depends on
+   the data only through $n_{\min}$ and the effect size (Theorem 1), and, as
+   $n_{\min}$ grows, only through $s = n_{\min}\delta^2$ (Theorem 2). For any
+   rank-based learner the max-shadow rule has level $1/(K+1)$ (Proposition 6),
+   more shadows raise the bar for real features (Corollary 1), and repeated
+   Boruta rounds have a false positive rate we bound (Proposition 7). A
+   Mann–Whitney test is driven by the same counting process and has
+   non-centrality $(3/\pi)s$, against $(2/\pi)s$ for the best single split
+   (Proposition 8, Corollary 2). A misestimated intercept raises the
+   evidence a split needs by a factor of order $1/\hat p$ (Proposition 5). What
+   we cannot prove, about full ensembles, is stated as conjectures with the
+   evidence for them.
+2. **Experiments that test each statement (Section 4).** About 57,000 fitted
+   models, two imbalance regimes chosen to overlap in $n_{\min}$, four learners.
+   Every proved statement was turned into a numerical prediction before the
+   experiment; Appendix A lists prediction, measurement and verdict.
 3. **Mitigations with both error rates (Section 5).** We compare eight
-   strategies on false negative rate *and* false positive rate. A threshold that
-   only lowers the bar trades one error for the other.
+   tree-based strategies and a rank-test baseline on false negative rate *and*
+   false positive rate.
 4. **A tested, scikit-learn compatible tool (Section 6).** The `shadowselect`
-   package provides `ShadowFeatureSelector` (Boruta-style rounds with held-out
-   permutation importance by default) and `assess_imbalance`, a pre-flight check
-   based on the theory. Every number and figure in this paper is produced by
-   scripts in the same repository with fixed seeds.
+   package provides `ShadowFeatureSelector` (Boruta-style rounds),
+   `UnivariateScreen` (rank tests with false-discovery control) and
+   `assess_imbalance`, a pre-flight check computed from the theory. Every
+   number and figure in this paper is produced by scripts in the same
+   repository with fixed seeds.
 
 ## 1.4 Related work
 
@@ -95,7 +104,10 @@ changes the comparison.
 **Maximally selected statistics.** The best split of a null feature is a
 maximally selected chi-square statistic, studied for cut-point selection in
 biostatistics [@miller1982maximally; @lausen1992maximally; @hothorn2003exact]. Our Theorem 1
-connects that literature to gradient-boosting importance under imbalance.
+connects that literature to gradient-boosting importance under imbalance. The
+loss from splitting a continuous variable at one threshold is the classical
+efficiency of grouping [@cox1957note] and of the median test relative to the
+Wilcoxon test [@mood1954asymptotic; @mann1947test].
 
 **Imbalanced learning.** Resampling (e.g. SMOTE, @chawla2002smote), cost-sensitive
 learning and ensembles are surveyed by @fernandez2018learning. That literature

@@ -164,6 +164,7 @@ Expected: ImportError / cannot import `derive_seed`.
 Pure functions, importable from both the parameterized notebook and the
 unit test suite. No I/O lives here.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -302,8 +303,20 @@ from shadow_lib import compute_metrics
 
 
 def test_compute_metrics_naive_floor_is_max_of_noise():
-    importances = np.array([0.30, 0.25, 0.10, 0.05, 0.04,  # real (5)
-                            0.10, 0.08, 0.04, 0.02, 0.02])  # noise (5)
+    importances = np.array(
+        [
+            0.30,
+            0.25,
+            0.10,
+            0.05,
+            0.04,  # real (5)
+            0.10,
+            0.08,
+            0.04,
+            0.02,
+            0.02,
+        ]
+    )  # noise (5)
     m = compute_metrics(importances, n_real=5, n_noise=5)
     assert m["naive_floor"] == 0.10
 
@@ -318,16 +331,40 @@ def test_compute_metrics_p90_floor_is_p90_of_noise():
 
 
 def test_compute_metrics_fnr_max_counts_real_below_floor():
-    importances = np.array([0.30, 0.25, 0.03, 0.02, 0.01,  # real
-                            0.05, 0.04, 0.03, 0.02, 0.02])  # noise
+    importances = np.array(
+        [
+            0.30,
+            0.25,
+            0.03,
+            0.02,
+            0.01,  # real
+            0.05,
+            0.04,
+            0.03,
+            0.02,
+            0.02,
+        ]
+    )  # noise
     m = compute_metrics(importances, n_real=5, n_noise=5)
     # naive floor = max(noise) = 0.05; reals below: 0.03, 0.02, 0.01 -> 3/5
     assert np.isclose(m["fnr_max"], 0.6)
 
 
 def test_compute_metrics_fnr_p90_uses_p90_floor():
-    importances = np.array([0.30, 0.25, 0.10, 0.05, 0.04,  # real
-                            0.10, 0.08, 0.04, 0.02, 0.02])  # noise
+    importances = np.array(
+        [
+            0.30,
+            0.25,
+            0.10,
+            0.05,
+            0.04,  # real
+            0.10,
+            0.08,
+            0.04,
+            0.02,
+            0.02,
+        ]
+    )  # noise
     m = compute_metrics(importances, n_real=5, n_noise=5)
     p90 = np.percentile([0.10, 0.08, 0.04, 0.02, 0.02], 90)
     expected_fnr = sum(r < p90 for r in [0.30, 0.25, 0.10, 0.05, 0.04]) / 5
@@ -335,8 +372,20 @@ def test_compute_metrics_fnr_p90_uses_p90_floor():
 
 
 def test_compute_metrics_mean_real_importance():
-    importances = np.array([0.30, 0.25, 0.10, 0.05, 0.04,  # real
-                            0.10, 0.08, 0.04, 0.02, 0.02])  # noise
+    importances = np.array(
+        [
+            0.30,
+            0.25,
+            0.10,
+            0.05,
+            0.04,  # real
+            0.10,
+            0.08,
+            0.04,
+            0.02,
+            0.02,
+        ]
+    )  # noise
     m = compute_metrics(importances, n_real=5, n_noise=5)
     assert np.isclose(m["mean_real_importance"], np.mean([0.30, 0.25, 0.10, 0.05, 0.04]))
 ```
@@ -351,9 +400,7 @@ Expected: ImportError for `compute_metrics`.
 Append to `shadow_lib.py`:
 
 ```python
-def compute_metrics(
-    importances: np.ndarray, n_real: int, n_noise: int
-) -> dict[str, float]:
+def compute_metrics(importances: np.ndarray, n_real: int, n_noise: int) -> dict[str, float]:
     """Per-repeat metrics from normalized gain importances.
 
     Convention: the first n_real entries are real features, the next n_noise
@@ -413,11 +460,17 @@ def test_pipeline_smoke_xgboost():
     """Sanity check: with strong signal and balanced data, real-feature
     importance should clearly dominate the noise floor."""
     from xgboost import XGBClassifier
+
     X, y = make_dataset(n=2000, p=0.5, delta=1.0, n_real=5, n_noise=5, seed=42)
     clf = XGBClassifier(
-        n_estimators=200, max_depth=4, learning_rate=0.1,
-        tree_method="hist", importance_type="gain", n_jobs=1,
-        eval_metric="logloss", verbosity=0,
+        n_estimators=200,
+        max_depth=4,
+        learning_rate=0.1,
+        tree_method="hist",
+        importance_type="gain",
+        n_jobs=1,
+        eval_metric="logloss",
+        verbosity=0,
     )
     clf.fit(X, y)
     m = compute_metrics(clf.feature_importances_, n_real=5, n_noise=5)
@@ -461,17 +514,33 @@ from scenarios import (
 
 
 def test_scenario_id_deterministic():
-    p1 = {"regime": "A", "n": 1000, "p": 0.1, "delta": 0.5,
-          "n_real": 5, "n_noise": 5, "control": False,
-          "backend": "xgboost", "n_repeats": 25}
+    p1 = {
+        "regime": "A",
+        "n": 1000,
+        "p": 0.1,
+        "delta": 0.5,
+        "n_real": 5,
+        "n_noise": 5,
+        "control": False,
+        "backend": "xgboost",
+        "n_repeats": 25,
+    }
     p2 = dict(p1)
     assert scenario_id(p1) == scenario_id(p2)
 
 
 def test_scenario_id_differs_on_any_param_change():
-    base = {"regime": "A", "n": 1000, "p": 0.1, "delta": 0.5,
-            "n_real": 5, "n_noise": 5, "control": False,
-            "backend": "xgboost", "n_repeats": 25}
+    base = {
+        "regime": "A",
+        "n": 1000,
+        "p": 0.1,
+        "delta": 0.5,
+        "n_real": 5,
+        "n_noise": 5,
+        "control": False,
+        "backend": "xgboost",
+        "n_repeats": 25,
+    }
     sid = scenario_id(base)
     for key in base:
         modified = dict(base)
@@ -549,6 +618,7 @@ Expected: cannot import `scenarios`.
 Each scenario is a dict with these keys (all hash inputs for scenario_id):
     regime, n, p, delta, n_real, n_noise, control, backend, n_repeats
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -583,7 +653,7 @@ def _cross(
     for n, p, delta in itertools.product(ns, ps, deltas):
         if round(n * p) < 5:
             continue
-        for control in ([False, True] if control_too else [False]):
+        for control in [False, True] if control_too else [False]:
             out.append(
                 {
                     "regime": regime,
@@ -609,54 +679,104 @@ FULL_PROFILE = "full"
 def _smoke() -> list[dict[str, Any]]:
     scenarios: list[dict[str, Any]] = []
     # Regime A
-    scenarios.extend(_cross(
-        "A", ns=[500, 1000], ps=[0.10, 0.20], deltas=[0.5],
-        base_repeats=2,
-    ))
+    scenarios.extend(
+        _cross(
+            "A",
+            ns=[500, 1000],
+            ps=[0.10, 0.20],
+            deltas=[0.5],
+            base_repeats=2,
+        )
+    )
     # Regime B
-    scenarios.extend(_cross(
-        "B", ns=[5000], ps=[0.01], deltas=[0.5],
-        base_repeats=2,
-    ))
+    scenarios.extend(
+        _cross(
+            "B",
+            ns=[5000],
+            ps=[0.01],
+            deltas=[0.5],
+            base_repeats=2,
+        )
+    )
     # 1 n_noise=20 robustness scenario
-    scenarios.extend(_cross(
-        "A", ns=[1000], ps=[0.10], deltas=[0.5],
-        n_noise=20, control_too=False, base_repeats=2,
-    ))
+    scenarios.extend(
+        _cross(
+            "A",
+            ns=[1000],
+            ps=[0.10],
+            deltas=[0.5],
+            n_noise=20,
+            control_too=False,
+            base_repeats=2,
+        )
+    )
     # 1 sklearn cross-check
-    scenarios.extend(_cross(
-        "A", ns=[1000], ps=[0.10], deltas=[0.5],
-        control_too=False, backend="sklearn_gbm", base_repeats=2,
-    ))
+    scenarios.extend(
+        _cross(
+            "A",
+            ns=[1000],
+            ps=[0.10],
+            deltas=[0.5],
+            control_too=False,
+            backend="sklearn_gbm",
+            base_repeats=2,
+        )
+    )
     return _dedupe(scenarios)
 
 
 def _full() -> list[dict[str, Any]]:
     scenarios: list[dict[str, Any]] = []
     # Regime A: full cross
-    scenarios.extend(_cross(
-        "A", ns=[500, 1000, 2500, 5000], ps=[0.05, 0.10, 0.20],
-        deltas=[0.3, 0.5, 1.0],
-    ))
+    scenarios.extend(
+        _cross(
+            "A",
+            ns=[500, 1000, 2500, 5000],
+            ps=[0.05, 0.10, 0.20],
+            deltas=[0.3, 0.5, 1.0],
+        )
+    )
     # Regime B: full cross
-    scenarios.extend(_cross(
-        "B", ns=[10000, 50000, 200000], ps=[0.001, 0.005, 0.01],
-        deltas=[0.3, 0.5, 1.0],
-    ))
+    scenarios.extend(
+        _cross(
+            "B",
+            ns=[10000, 50000, 200000],
+            ps=[0.001, 0.005, 0.01],
+            deltas=[0.3, 0.5, 1.0],
+        )
+    )
     # n_noise=20 robustness: δ=0.5 only, no control, both regimes
-    scenarios.extend(_cross(
-        "A", ns=[500, 1000, 2500, 5000], ps=[0.05, 0.10, 0.20],
-        deltas=[0.5], n_noise=20, control_too=False,
-    ))
-    scenarios.extend(_cross(
-        "B", ns=[10000, 50000, 200000], ps=[0.001, 0.005, 0.01],
-        deltas=[0.5], n_noise=20, control_too=False,
-    ))
+    scenarios.extend(
+        _cross(
+            "A",
+            ns=[500, 1000, 2500, 5000],
+            ps=[0.05, 0.10, 0.20],
+            deltas=[0.5],
+            n_noise=20,
+            control_too=False,
+        )
+    )
+    scenarios.extend(
+        _cross(
+            "B",
+            ns=[10000, 50000, 200000],
+            ps=[0.001, 0.005, 0.01],
+            deltas=[0.5],
+            n_noise=20,
+            control_too=False,
+        )
+    )
     # sklearn cross-check: 6 scenarios from Regime A, moderate n, δ=0.5
-    scenarios.extend(_cross(
-        "A", ns=[1000, 2500, 5000], ps=[0.10, 0.20],
-        deltas=[0.5], control_too=False, backend="sklearn_gbm",
-    ))
+    scenarios.extend(
+        _cross(
+            "A",
+            ns=[1000, 2500, 5000],
+            ps=[0.10, 0.20],
+            deltas=[0.5],
+            control_too=False,
+            backend="sklearn_gbm",
+        )
+    )
     return _dedupe(scenarios)
 
 
@@ -677,6 +797,7 @@ def build_scenarios(profile: str) -> list[dict[str, Any]]:
 
 if __name__ == "__main__":
     import sys
+
     prof = sys.argv[1] if len(sys.argv) > 1 else SMOKE_PROFILE
     scenarios = build_scenarios(prof)
     print(f"profile={prof} n_scenarios={len(scenarios)}")
@@ -941,6 +1062,7 @@ results already exist, executes the parameterized notebook via papermill for
 the rest, retries transient failures, and loops until coverage is reached or
 all remaining are marked failed.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -1014,8 +1136,7 @@ def run_one(scenario: dict[str, Any], sid: str, orch: dict[str, Any]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--profile", default=None,
-                        help="smoke | full (default from config.yaml)")
+    parser.add_argument("--profile", default=None, help="smoke | full (default from config.yaml)")
     args = parser.parse_args()
 
     cfg = load_config()
@@ -1034,14 +1155,17 @@ def main() -> int:
     failed = load_failed(failed_path)
 
     for pass_idx in range(1, max_passes + 1):
-        remaining = [(sid, s) for sid, s in targets
-                     if not is_done(results_dir, sid) and sid not in failed]
+        remaining = [
+            (sid, s) for sid, s in targets if not is_done(results_dir, sid) and sid not in failed
+        ]
         if not remaining:
             print(f"[sweep] pass {pass_idx}: nothing to do (all covered or failed)")
             break
-        print(f"[sweep] pass {pass_idx}: remaining={len(remaining)} "
-              f"covered={sum(1 for sid, _ in targets if is_done(results_dir, sid))} "
-              f"failed={len(failed)}")
+        print(
+            f"[sweep] pass {pass_idx}: remaining={len(remaining)} "
+            f"covered={sum(1 for sid, _ in targets if is_done(results_dir, sid))} "
+            f"failed={len(failed)}"
+        )
         for i, (sid, s) in enumerate(remaining, 1):
             t0 = time.time()
             last_exc: BaseException | None = None
@@ -1049,37 +1173,44 @@ def main() -> int:
                 try:
                     run_one(s, sid, orch)
                     elapsed = time.time() - t0
-                    print(f"[sweep]   [{i}/{len(remaining)}] {sid} OK "
-                          f"({elapsed:.1f}s, attempt {attempt}) {_compact(s)}")
+                    print(
+                        f"[sweep]   [{i}/{len(remaining)}] {sid} OK "
+                        f"({elapsed:.1f}s, attempt {attempt}) {_compact(s)}"
+                    )
                     last_exc = None
                     break
                 except Exception as exc:
                     last_exc = exc
-                    print(f"[sweep]   [{i}/{len(remaining)}] {sid} FAIL "
-                          f"attempt {attempt}: {exc!r}")
+                    print(f"[sweep]   [{i}/{len(remaining)}] {sid} FAIL attempt {attempt}: {exc!r}")
             if last_exc is not None:
                 failed[sid] = {
                     "scenario": s,
                     "pass": pass_idx,
                     "exception": repr(last_exc),
                     "traceback": traceback.format_exception(
-                        type(last_exc), last_exc, last_exc.__traceback__),
+                        type(last_exc), last_exc, last_exc.__traceback__
+                    ),
                 }
                 write_failed(failed_path, failed)
                 print(f"[sweep]   [{i}/{len(remaining)}] {sid} marked FAILED")
 
     covered = sum(1 for sid, _ in targets if is_done(results_dir, sid))
-    still_missing = [sid for sid, _ in targets
-                     if not is_done(results_dir, sid) and sid not in failed]
-    print(f"[sweep] DONE: covered={covered}/{len(targets)} "
-          f"failed={len(failed)} still_missing={len(still_missing)}")
+    still_missing = [
+        sid for sid, _ in targets if not is_done(results_dir, sid) and sid not in failed
+    ]
+    print(
+        f"[sweep] DONE: covered={covered}/{len(targets)} "
+        f"failed={len(failed)} still_missing={len(still_missing)}"
+    )
     return 0 if not still_missing else 2
 
 
 def _compact(s: dict[str, Any]) -> str:
-    return (f"regime={s['regime']} n={s['n']} p={s['p']} delta={s['delta']} "
-            f"control={s['control']} backend={s['backend']} "
-            f"n_noise={s['n_noise']} n_repeats={s['n_repeats']}")
+    return (
+        f"regime={s['regime']} n={s['n']} p={s['p']} delta={s['delta']} "
+        f"control={s['control']} backend={s['backend']} "
+        f"n_noise={s['n_noise']} n_repeats={s['n_repeats']}"
+    )
 
 
 if __name__ == "__main__":
@@ -1152,6 +1283,7 @@ smoke run.
 
 ```python
 """Cross-scenario aggregation: figures + summary CSV for the paper."""
+
 from __future__ import annotations
 
 import argparse
@@ -1164,8 +1296,12 @@ import pandas as pd
 
 REGIME_COLOR = {"A": "#1f77b4", "B": "#d62728"}
 P_MARKER = {
-    0.001: "v", 0.005: "^", 0.01: "s",
-    0.05: "o", 0.10: "D", 0.20: "P",
+    0.001: "v",
+    0.005: "^",
+    0.01: "s",
+    0.05: "o",
+    0.10: "D",
+    0.20: "P",
 }
 
 FIG_DIR = Path("figures")
@@ -1178,26 +1314,28 @@ def load_results(results_dir: Path) -> pd.DataFrame:
             r = json.load(f)
         params = r["params"]
         agg = r["aggregate"]
-        rows.append({
-            "scenario_id": r["scenario_id"],
-            "regime": params["regime"],
-            "n": params["n"],
-            "p": params["p"],
-            "delta": params["delta"],
-            "n_real": params["n_real"],
-            "n_noise": params["n_noise"],
-            "control": params["control"],
-            "backend": params["backend"],
-            "n_repeats": params["n_repeats"],
-            "n_min": r["n_min"],
-            "naive_floor_mean": agg["naive_floor"]["mean"],
-            "naive_floor_std": agg["naive_floor"]["std"],
-            "p90_floor_mean": agg["p90_floor"]["mean"],
-            "mean_real_importance_mean": agg["mean_real_importance"]["mean"],
-            "fnr_max_mean": agg["fnr_max"]["mean"],
-            "fnr_max_std": agg["fnr_max"]["std"],
-            "fnr_p90_mean": agg["fnr_p90"]["mean"],
-        })
+        rows.append(
+            {
+                "scenario_id": r["scenario_id"],
+                "regime": params["regime"],
+                "n": params["n"],
+                "p": params["p"],
+                "delta": params["delta"],
+                "n_real": params["n_real"],
+                "n_noise": params["n_noise"],
+                "control": params["control"],
+                "backend": params["backend"],
+                "n_repeats": params["n_repeats"],
+                "n_min": r["n_min"],
+                "naive_floor_mean": agg["naive_floor"]["mean"],
+                "naive_floor_std": agg["naive_floor"]["std"],
+                "p90_floor_mean": agg["p90_floor"]["mean"],
+                "mean_real_importance_mean": agg["mean_real_importance"]["mean"],
+                "fnr_max_mean": agg["fnr_max"]["mean"],
+                "fnr_max_std": agg["fnr_max"]["std"],
+                "fnr_p90_mean": agg["fnr_p90"]["mean"],
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -1208,17 +1346,18 @@ def save_fig(fig: plt.Figure, name: str) -> None:
     plt.close(fig)
 
 
-def _plot_metric_vs_nmin(
-    df: pd.DataFrame, metric: str, ylabel: str, title: str
-) -> plt.Figure:
+def _plot_metric_vs_nmin(df: pd.DataFrame, metric: str, ylabel: str, title: str) -> plt.Figure:
     fig, ax = plt.subplots(figsize=(7, 4.5))
     for (regime, p), sub in df.groupby(["regime", "p"]):
         sub = sub.sort_values("n_min")
         ax.plot(
-            sub["n_min"], sub[metric],
+            sub["n_min"],
+            sub[metric],
             marker=P_MARKER.get(p, "o"),
             color=REGIME_COLOR[regime],
-            linestyle="-", linewidth=1.2, markersize=6,
+            linestyle="-",
+            linewidth=1.2,
+            markersize=6,
             label=f"regime {regime}, p={p}",
             alpha=0.85,
         )
@@ -1233,12 +1372,12 @@ def _plot_metric_vs_nmin(
 
 
 def plot_collapse(df: pd.DataFrame) -> None:
-    primary = df[(df["control"] == False) & (df["backend"] == "xgboost") &
-                 (df["n_noise"] == 5)]
+    primary = df[(df["control"] == False) & (df["backend"] == "xgboost") & (df["n_noise"] == 5)]
     for d in sorted(primary["delta"].unique()):
         sub = primary[primary["delta"] == d]
         fig = _plot_metric_vs_nmin(
-            sub, "fnr_max_mean",
+            sub,
+            "fnr_max_mean",
             "FNR (naive shadow floor)",
             f"Collapse: FNR_max vs n_min   (δ={d})",
         )
@@ -1246,10 +1385,15 @@ def plot_collapse(df: pd.DataFrame) -> None:
 
 
 def plot_noise_floor_inflation(df: pd.DataFrame) -> None:
-    primary = df[(df["control"] == False) & (df["backend"] == "xgboost") &
-                 (df["n_noise"] == 5) & (df["delta"] == 0.5)]
+    primary = df[
+        (df["control"] == False)
+        & (df["backend"] == "xgboost")
+        & (df["n_noise"] == 5)
+        & (df["delta"] == 0.5)
+    ]
     fig = _plot_metric_vs_nmin(
-        primary, "naive_floor_mean",
+        primary,
+        "naive_floor_mean",
         "normalized noise floor (max over noise features)",
         "Noise floor inflation vs n_min  (δ=0.5)",
     )
@@ -1257,18 +1401,28 @@ def plot_noise_floor_inflation(df: pd.DataFrame) -> None:
 
 
 def plot_mechanism(df: pd.DataFrame) -> None:
-    base = df[(df["backend"] == "xgboost") & (df["n_noise"] == 5) &
-              (df["delta"] == 0.5)]
+    base = df[(df["backend"] == "xgboost") & (df["n_noise"] == 5) & (df["delta"] == 0.5)]
     signal = base[base["control"] == False].sort_values("n_min")
     control = base[base["control"] == True].sort_values("n_min")
     fig, ax = plt.subplots(figsize=(7.5, 4.8))
-    ax.plot(signal["n_min"], signal["mean_real_importance_mean"],
-            "o-", color="green", label="mean real-feature importance (signal)")
-    ax.plot(signal["n_min"], signal["naive_floor_mean"],
-            "s-", color="red", label="noise floor (signal)")
+    ax.plot(
+        signal["n_min"],
+        signal["mean_real_importance_mean"],
+        "o-",
+        color="green",
+        label="mean real-feature importance (signal)",
+    )
+    ax.plot(
+        signal["n_min"], signal["naive_floor_mean"], "s-", color="red", label="noise floor (signal)"
+    )
     if not control.empty:
-        ax.plot(control["n_min"], control["naive_floor_mean"],
-                "x--", color="gray", label="noise floor (pure-noise control)")
+        ax.plot(
+            control["n_min"],
+            control["naive_floor_mean"],
+            "x--",
+            color="gray",
+            label="noise floor (pure-noise control)",
+        )
     ax.set_xscale("log")
     ax.set_xlabel("n_min")
     ax.set_ylabel("normalized importance")
@@ -1280,15 +1434,29 @@ def plot_mechanism(df: pd.DataFrame) -> None:
 
 
 def plot_mitigation(df: pd.DataFrame) -> None:
-    base = df[(df["control"] == False) & (df["backend"] == "xgboost") &
-              (df["n_noise"] == 5) & (df["delta"] == 0.5)].sort_values("n_min")
+    base = df[
+        (df["control"] == False)
+        & (df["backend"] == "xgboost")
+        & (df["n_noise"] == 5)
+        & (df["delta"] == 0.5)
+    ].sort_values("n_min")
     fig, ax = plt.subplots(figsize=(7.5, 4.8))
     for regime, sub in base.groupby("regime"):
-        ax.plot(sub["n_min"], sub["fnr_max_mean"], "o-",
-                color=REGIME_COLOR[regime], label=f"FNR_max  regime {regime}")
-        ax.plot(sub["n_min"], sub["fnr_p90_mean"], "s--",
-                color=REGIME_COLOR[regime], alpha=0.6,
-                label=f"FNR_p90  regime {regime}")
+        ax.plot(
+            sub["n_min"],
+            sub["fnr_max_mean"],
+            "o-",
+            color=REGIME_COLOR[regime],
+            label=f"FNR_max  regime {regime}",
+        )
+        ax.plot(
+            sub["n_min"],
+            sub["fnr_p90_mean"],
+            "s--",
+            color=REGIME_COLOR[regime],
+            alpha=0.6,
+            label=f"FNR_p90  regime {regime}",
+        )
     ax.set_xscale("log")
     ax.set_xlabel("n_min")
     ax.set_ylabel("FNR")
@@ -1300,14 +1468,16 @@ def plot_mitigation(df: pd.DataFrame) -> None:
 
 
 def plot_heatmaps(df: pd.DataFrame) -> None:
-    base = df[(df["control"] == False) & (df["backend"] == "xgboost") &
-              (df["n_noise"] == 5) & (df["delta"] == 0.5)]
+    base = df[
+        (df["control"] == False)
+        & (df["backend"] == "xgboost")
+        & (df["n_noise"] == 5)
+        & (df["delta"] == 0.5)
+    ]
     for regime, sub in base.groupby("regime"):
-        pivot = sub.pivot_table(index="n", columns="p",
-                                values="fnr_max_mean", aggfunc="mean")
+        pivot = sub.pivot_table(index="n", columns="p", values="fnr_max_mean", aggfunc="mean")
         fig, ax = plt.subplots(figsize=(5.5, 4))
-        im = ax.imshow(pivot.values, aspect="auto", cmap="magma",
-                       vmin=0.0, vmax=1.0)
+        im = ax.imshow(pivot.values, aspect="auto", cmap="magma", vmin=0.0, vmax=1.0)
         ax.set_xticks(range(len(pivot.columns)))
         ax.set_xticklabels([f"{c:g}" for c in pivot.columns])
         ax.set_yticks(range(len(pivot.index)))
@@ -1319,29 +1489,39 @@ def plot_heatmaps(df: pd.DataFrame) -> None:
             for j in range(pivot.shape[1]):
                 v = pivot.values[i, j]
                 if not np.isnan(v):
-                    ax.text(j, i, f"{v:.2f}", ha="center", va="center",
-                            color="white" if v < 0.6 else "black", fontsize=9)
+                    ax.text(
+                        j,
+                        i,
+                        f"{v:.2f}",
+                        ha="center",
+                        va="center",
+                        color="white" if v < 0.6 else "black",
+                        fontsize=9,
+                    )
         fig.colorbar(im, ax=ax, label="FNR_max")
         fig.tight_layout()
         save_fig(fig, f"05_heatmap_regime_{regime}")
 
 
 def plot_signal_interaction(df: pd.DataFrame) -> None:
-    base = df[(df["control"] == False) & (df["backend"] == "xgboost") &
-              (df["n_noise"] == 5)]
+    base = df[(df["control"] == False) & (df["backend"] == "xgboost") & (df["n_noise"] == 5)]
     deltas = sorted(base["delta"].unique())
-    fig, axes = plt.subplots(1, len(deltas), figsize=(5 * len(deltas), 4),
-                             sharey=True)
+    fig, axes = plt.subplots(1, len(deltas), figsize=(5 * len(deltas), 4), sharey=True)
     if len(deltas) == 1:
         axes = [axes]
     for ax, d in zip(axes, deltas):
         sub = base[base["delta"] == d]
         for (regime, p), grp in sub.groupby(["regime", "p"]):
             grp = grp.sort_values("n_min")
-            ax.plot(grp["n_min"], grp["fnr_max_mean"],
-                    marker=P_MARKER.get(p, "o"),
-                    color=REGIME_COLOR[regime], linewidth=1.2,
-                    label=f"{regime}, p={p}", alpha=0.85)
+            ax.plot(
+                grp["n_min"],
+                grp["fnr_max_mean"],
+                marker=P_MARKER.get(p, "o"),
+                color=REGIME_COLOR[regime],
+                linewidth=1.2,
+                label=f"{regime}, p={p}",
+                alpha=0.85,
+            )
         ax.set_xscale("log")
         ax.set_xlabel("n_min")
         ax.set_title(f"δ = {d}")
@@ -1354,40 +1534,54 @@ def plot_signal_interaction(df: pd.DataFrame) -> None:
 
 
 def plot_robustness(df: pd.DataFrame) -> None:
-    n20 = df[(df["control"] == False) & (df["n_noise"] == 20) &
-             (df["backend"] == "xgboost") & (df["delta"] == 0.5)]
+    n20 = df[
+        (df["control"] == False)
+        & (df["n_noise"] == 20)
+        & (df["backend"] == "xgboost")
+        & (df["delta"] == 0.5)
+    ]
     if not n20.empty:
         fig = _plot_metric_vs_nmin(
-            n20, "fnr_max_mean", "FNR_max (n_noise=20)",
+            n20,
+            "fnr_max_mean",
+            "FNR_max (n_noise=20)",
             "Robustness: same collapse with n_noise=20  (δ=0.5)",
         )
         save_fig(fig, "07a_robustness_n_noise_20")
 
-    sk = df[(df["control"] == False) & (df["backend"] == "sklearn_gbm") &
-            (df["delta"] == 0.5)]
+    sk = df[(df["control"] == False) & (df["backend"] == "sklearn_gbm") & (df["delta"] == 0.5)]
     if not sk.empty:
         fig = _plot_metric_vs_nmin(
-            sk, "fnr_max_mean", "FNR_max (sklearn GBM)",
+            sk,
+            "fnr_max_mean",
+            "FNR_max (sklearn GBM)",
             "Robustness: sklearn GBM cross-check  (δ=0.5)",
         )
         save_fig(fig, "07b_robustness_sklearn_gbm")
 
 
 def write_summary_table(df: pd.DataFrame) -> Path:
-    base = df[(df["control"] == False) & (df["backend"] == "xgboost") &
-              (df["n_noise"] == 5) & (df["delta"] == 0.5)].copy()
+    base = df[
+        (df["control"] == False)
+        & (df["backend"] == "xgboost")
+        & (df["n_noise"] == 5)
+        & (df["delta"] == 0.5)
+    ].copy()
     bins = [0, 25, 75, 200, 500, 1500, np.inf]
     labels = ["<25", "25-74", "75-199", "200-499", "500-1499", "1500+"]
-    base["n_min_bin"] = pd.cut(base["n_min"], bins=bins, labels=labels,
-                               right=False)
-    grouped = base.groupby("n_min_bin", observed=True).agg(
-        n_scenarios=("scenario_id", "count"),
-        n_min_min=("n_min", "min"),
-        n_min_max=("n_min", "max"),
-        mean_noise_floor=("naive_floor_mean", "mean"),
-        mean_fnr_max=("fnr_max_mean", "mean"),
-        mean_fnr_p90=("fnr_p90_mean", "mean"),
-    ).reset_index()
+    base["n_min_bin"] = pd.cut(base["n_min"], bins=bins, labels=labels, right=False)
+    grouped = (
+        base.groupby("n_min_bin", observed=True)
+        .agg(
+            n_scenarios=("scenario_id", "count"),
+            n_min_min=("n_min", "min"),
+            n_min_max=("n_min", "max"),
+            mean_noise_floor=("naive_floor_mean", "mean"),
+            mean_fnr_max=("fnr_max_mean", "mean"),
+            mean_fnr_p90=("fnr_p90_mean", "mean"),
+        )
+        .reset_index()
+    )
 
     def recommend(row):
         if pd.isna(row["mean_fnr_max"]):

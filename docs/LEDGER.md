@@ -87,4 +87,39 @@ Of 12 issues, the main ones were:
   prevalence.
 
 ### 4. Independent review 2 (full paper vs. data)
-See below once complete.
+The reviewer recomputed every number from `results/`. Fed back:
+* Old P9 ("memorisation budget") is an accounting identity: total gain ≈
+  loss removed / (η(1 − η/2)). → **Prop 9** proves it; the measured ratio
+  is reported over all 42 cells (8.8 ± 1.6), without the post-hoc filter.
+* The 94% isotonic R² is in-sample. → LOO 0.90, bootstrap 0.91–0.98,
+  non-saturated 0.89 (LOO 0.81), both directions for p, δ alone 0.43.
+* A univariate Mann–Whitney baseline beats every tree method at small
+  n_min. → **E6**, `UnivariateScreen`, Rule 4, and the theory in Prop 8.
+* The ≈15% FPR of Boruta rounds is specific to 20 rounds and 10 shadows. →
+  **Prop 7**, **E7**.
+* Detection thresholds assume 5–10 shadows. → **Cor 1**, **E8**.
+* Library defaults asserted P11. → defaults changed (`importance="auto"`,
+  `keep_tentative=True`, random-forest default estimator).
+* Several numbers and examples corrected (Prop 5 constant e⁻², 4.5%, 100,000,
+  χ² for P4, E3 rerun with no-split rows as missing, selective P7 examples,
+  Rule 2 ranges).
+
+### 5. Proofs (author's request: "the math should show the demonstrations")
+Every main claim became a theorem with proof or a labelled conjecture:
+Theorem 2 (s-scaling, Donsker + Anderson), Prop 6 (exact level 1/(K+1) by
+exchangeability), Cor 1 (number of shadows), Prop 7 (Boruta rounds FPR bound),
+Prop 8 (rank test in the same limit, power formula), Cor 2 (efficiency 2/3),
+Prop 9 (gain accounting), Conjectures 1–2. Full proofs in paper Appendix C.
+New predictions P13–P17, all confirmed or supported (`ledger_measurements.md`).
+
+### 6. Independent review 3 (proofs)
+21 points, none overturning a result. Fixed: exact assumptions for Prop 6
+(not valid for held-out permutation importance with exact search; needs
+random column order → `ShadowFeatureSelector` now shuffles columns each
+round), hist clause of Thm 1 → corollary with hypotheses (H1)–(H2), J1
+convergence on a moving domain, sandwich for finite-n win probabilities
+(atoms), self-contained proof of the median-split optimum (replacing a Cox
+citation), Borell log-concavity for Anderson in infinite dimensions,
+Tsirelson for atomlessness, an explicit error bound (7') for the toll
+approximation, Remark (iii) corrected (finite a.s., infinite mean),
+Conjecture 1's normalisation corrected (2 log log(1/a_m)).

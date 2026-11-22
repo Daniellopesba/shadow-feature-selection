@@ -5,28 +5,34 @@ date: "November 2026"
 abstract: |
   The shadow-feature heuristic, popularised by Boruta, judges each feature
   against artificial features that are irrelevant by construction and drops
-  any feature that does not beat them. We show that when the positive class
-  is rare, the heuristic drops genuinely predictive features at high rates.
-  The quantity that controls this is the number of minority samples
-  $n_{\min}$, combined with the effect size as $s = n_{\min}\delta^2$, and not
-  the imbalance ratio. For gradient-boosted trees we prove that the
-  first-round split gain is exactly Pearson's chi-square statistic for the
-  split-by-class table. In the small-prevalence limit, the root split
-  depends on the data only through $n_{\min}$ and $\delta$. This limit predicts
-  how often XGBoost picks an informative feature to within 0.03 on
-  average. We also show that XGBoost 2.x's default intercept, about 0.12
-  whenever the prevalence is small, imposes a toll that often blocks the
-  first splits and accounts for most of the extra failure at very small
-  prevalence. Across 600 simulated scenarios and 50,000 fitted models, $s$
-  explains 94% of the variance in the failure rate of 300-tree ensembles,
-  and the imbalance ratio explains none. We compare eight mitigations on
-  both false negative and false positive rates. Class weights, downsampling
-  and early stopping do not help. Repeated rounds that keep tentative
-  features give the best balance. Below about 25 positives no method we
-  tested recovers moderate effects. Each theoretical claim was written as a
-  prediction and tested, and we report the full ledger. We release
-  `shadowselect`, a tested scikit-learn compatible package with an
-  imbalance diagnostic, together with scripts that reproduce every number.
+  any feature that does not beat them. We show, with proofs, that when the
+  positive class is rare the heuristic loses genuinely predictive features,
+  and that what controls the loss is the number of minority samples
+  $n_{\min}$, combined with the effect size $\delta$ as $s = n_{\min}\delta^2$, not the
+  imbalance ratio. For gradient-boosted trees, the first-round split gain is
+  exactly Pearson's chi-square statistic. As the prevalence goes to zero the
+  root split depends on the data only through $n_{\min}$ and $\delta$, and as
+  $n_{\min}$ grows with $s$ fixed it depends on $s$ alone. For any rank-based
+  learner, the max-shadow rule keeps an irrelevant feature with probability
+  at most $1/(K+1)$ for $K$ shadows, so imbalance changes only its power. A
+  Mann–Whitney test on the same data is driven by the same counting process
+  but averages over thresholds where the split maximises; its power is
+  $\Phi(\sqrt{3s/\pi} - z_{\alpha/2})$, against a non-centrality of at most $(2/\pi)s$
+  for any single split. XGBoost 2.x's default intercept, about 0.12 whenever
+  the prevalence is small, raises the chi-square needed for a first split to
+  about $e^{-2}\lambda/\hat p$. Every result was stated as a prediction and tested
+  in about 57,000 fitted models: the limit predicts XGBoost's root choice
+  within binomial noise, the rule's false positive rate is 0.083 against a
+  bound of 0.091, and the rank test's error rates match its formula. For
+  full ensembles, which we do not prove anything about beyond a gain
+  accounting identity, $s$ explains 94% of the variance in failure rates
+  (90% out of sample). At equal false positive rate, a rank test with
+  false-discovery control loses far fewer relevant features than any
+  tree-based shadow method below about 50 positives, and below about 25
+  positives no method we tested works. We release `shadowselect`, a tested
+  scikit-learn compatible package with an imbalance diagnostic, a rank-test
+  screen and a Boruta-style selector, with scripts that reproduce every
+  number.
 keywords: [feature selection, class imbalance, gradient boosting, Boruta, shadow features, feature importance, chi-square]
 link-citations: true
 ---

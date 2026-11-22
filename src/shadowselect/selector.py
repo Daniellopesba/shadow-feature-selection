@@ -268,7 +268,11 @@ class ShadowFeatureSelector(SelectorMixin, BaseEstimator):
             est = clone(base)
             if "random_state" in est.get_params():
                 est.set_params(random_state=int(rng.integers(2**31 - 1)))
-            imp = self._importances(est, XX, y, rng)
+            # shuffle column order so that ties are not broken in favour of
+            # candidates (paper, Proposition 6, assumption A2)
+            order = rng.permutation(XX.shape[1])
+            imp = np.empty(XX.shape[1])
+            imp[order] = self._importances(est, XX[:, order], y, rng)
             real, shadow_imp = imp[:d], imp[d:]
             thr = float(np.quantile(shadow_imp, self.threshold_quantile))
             hits += real > thr

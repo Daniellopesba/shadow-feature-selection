@@ -406,15 +406,88 @@ def fig_e4():
     table("E4: mitigations, mean over p in {0.1, 0.01}", piv.reset_index())
 
 
+# --------------------------------------------------------------------- E6 + theory
+def fig_rank():
+    p = RESULTS / "e6_univariate.csv.gz"
+    q = RESULTS / "e4_mitigations.csv.gz"
+    if not (p.exists() and q.exists()):
+        return
+    from scipy import stats
+
+    from shadowselect.theory import limit_max_gain, rank_test_power
+
+    K, m = 9, 50
+    a = 1 / (K + 1)
+    svals = np.array([1, 2, 3, 5, 7, 10, 15, 20, 25, 35])
+    null = np.sort(limit_max_gain(m, 0.0, n_rep=8000, seed=2))
+    maxrule = []
+    for s_ in svals:
+        sig = limit_max_gain(m, np.sqrt(s_ / m), n_rep=1500, seed=1)
+        f = np.searchsorted(null, sig, side="left") / len(null)
+        maxrule.append(np.mean(f**K))
+    c = stats.chi2.ppf(1 - a, 1)
+    fig, axes = plt.subplots(1, 2, figsize=(9, 3.5))
+    ax = axes[0]
+    ax.plot(
+        svals,
+        [rank_test_power(s_, a) for s_ in svals],
+        "-o",
+        ms=3,
+        color=C[0],
+        label="Mann–Whitney (Prop 8)",
+    )
+    ax.plot(
+        svals,
+        stats.ncx2.sf(c, 1, 2 * svals / np.pi),
+        "-o",
+        ms=3,
+        color=C[1],
+        label="fixed median split (Prop 4)",
+    )
+    ax.plot(svals, maxrule, "-o", ms=3, color=C[2], label="max-shadow, best root split (Thm 1)")
+    ax.set(
+        xscale="log",
+        xlabel="$s = n_{min}δ^2$",
+        ylabel="power at level 1/(K+1) = 0.1",
+        title="(a) theory: three tests on the same data",
+    )
+    ax.legend(fontsize=6.5)
+    e6 = pd.read_csv(p).groupby(["method", "n_min"])[["fnr", "fpr"]].mean().reset_index()
+    e4 = pd.read_csv(q).groupby(["method", "n_min"])[["fnr", "fpr"]].mean().reset_index()
+    ax = axes[1]
+    for frame, meth, lab, col in (
+        (e6, "mwu_shadow_max", "rank test, shadow rule", C[0]),
+        (e6, "mwu_bh_0.2", "rank test, BH q=0.2", C[3]),
+        (e4, "naive", "XGBoost max rule (one shot)", C[2]),
+        (e4, "boruta_gain", "XGBoost Boruta rounds, keep tentative", C[4]),
+    ):
+        t = frame[frame.method == meth]
+        ax.plot(t.n_min, t.fnr, "-o", ms=3, color=col, label=f"{lab} (FPR {t.fpr.mean():.2f})")
+    ax.set(
+        xscale="log",
+        xlabel="$n_{min}$ (δ = 0.5)",
+        ylabel="FNR (relevant dropped)",
+        title="(b) measured, E4 and E6",
+    )
+    ax.legend(fontsize=6.5)
+    save(fig, "fig9_rank_vs_split")
+
+
 # --------------------------------------------------------------------- E5
 def fig_e5():
     p = RESULTS / "e5_backends.csv.gz"
     if not p.exists():
         return
     d = pd.read_csv(p)
+    d = d[d.importance == "native"]
     agg = d.groupby(["backend", "p", "n_min"]).fnr_q100.mean().reset_index()
     fig, ax = plt.subplots(figsize=(4.6, 3.3))
-    names = {"sklearn_gbm": "sklearn GBM", "random_forest": "random forest", "lightgbm": "LightGBM"}
+    names = {
+        "sklearn_gbm": "sklearn GBM",
+        "random_forest": "random forest",
+        "lightgbm": "LightGBM, 63 leaves",
+        "lightgbm_default": "LightGBM, 31 leaves",
+    }
     for k, (b, label) in enumerate(names.items()):
         for p, ls in ((0.1, "-"), (0.01, "--")):
             s = agg[(agg.backend == b) & (agg.p == p)].sort_values("n_min")
@@ -430,7 +503,7 @@ def fig_e5():
 
 
 if __name__ == "__main__":
-    for f in (fig_e1, fig_e2, fig_e2_noise20, fig_e3, fig_e4, fig_e5):
+    for f in (fig_e1, fig_e2, fig_e2_noise20, fig_e3, fig_e4, fig_e5, fig_rank):
         try:
             f()
         except FileNotFoundError as e:

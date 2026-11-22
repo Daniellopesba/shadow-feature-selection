@@ -1,8 +1,8 @@
 {
   "experiment": "e5_backends",
-  "n_scenarios": 36,
-  "n_tasks": 540,
-  "wall_seconds": 629.2,
+  "n_scenarios": 48,
+  "n_tasks": 720,
+  "wall_seconds": 705.6,
   "versions": {
     "python": "3.13.18",
     "numpy": "2.5.3",

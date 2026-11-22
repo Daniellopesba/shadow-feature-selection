@@ -1,8 +1,8 @@
 {
-  "experiment": "e6_univariate_quick",
-  "n_scenarios": 12,
-  "n_tasks": 24,
-  "wall_seconds": 1.4,
+  "experiment": "e7_rounds",
+  "n_scenarios": 10,
+  "n_tasks": 100,
+  "wall_seconds": 645.5,
   "versions": {
     "python": "3.13.18",
     "numpy": "2.5.3",

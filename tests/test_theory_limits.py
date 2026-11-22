@@ -1,4 +1,8 @@
-"""Numerical checks of Theorem 2 and Propositions 6, 8 and 9."""
+"""Numerical checks of the paper's limit results.
+
+Covers the scaling variable s, the level of the max-shadow rule, the rank-test
+power and the gain accounting.
+"""
 
 import numpy as np
 import pytest

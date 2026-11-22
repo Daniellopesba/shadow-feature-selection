@@ -1,6 +1,13 @@
 """shadowselect: shadow-feature selection that is honest about class imbalance."""
 
-from .diagnostics import ImbalanceReport, ImbalanceWarning, assess_imbalance, minority_count
+from .diagnostics import (
+    ImbalanceReport,
+    ImbalanceWarning,
+    LearnerWarning,
+    assess_imbalance,
+    minority_count,
+    null_keep_rate,
+)
 from .screening import UnivariateScreen, benjamini_hochberg
 from .selector import ShadowFeatureSelector
 
@@ -9,8 +16,16 @@ __all__ = [
     "UnivariateScreen",
     "benjamini_hochberg",
     "ImbalanceWarning",
+    "LearnerWarning",
     "ImbalanceReport",
     "assess_imbalance",
     "minority_count",
+    "null_keep_rate",
 ]
-__version__ = "0.1.0"
+
+try:
+    from importlib.metadata import PackageNotFoundError, version
+
+    __version__ = version("shadowselect")
+except PackageNotFoundError:  # pragma: no cover - running from a source tree
+    __version__ = "0+unknown"

@@ -113,7 +113,7 @@ def test_detection_probability_monotone():
 
 
 def test_intercept_toll_identity():
-    # Proposition 5, eq. (7): exact decomposition of the gain under a wrong intercept.
+    # Intercept toll: exact decomposition of the gain under a wrong intercept.
     rng = np.random.default_rng(4)
     n, k, b, lam = 3000, 30, 0.12, 1.0
     x = rng.standard_normal(n)
@@ -155,3 +155,17 @@ def test_xgboost_reported_root_gain_is_pearson_chi2():
     thr, gains = split_gains(x[:, 0], y)
     assert root.Gain == pytest.approx(gains.max(), rel=1e-4)
     assert root.Gain == pytest.approx(pearson_chi2_2x2(x[:, 0], y, root.Split), rel=1e-3)
+
+
+def test_pearson_chi2_no_overflow_at_one_million_rows():
+    from scipy import stats as st
+
+    from shadowselect.theory import pearson_chi2_2x2
+
+    rng = np.random.default_rng(0)
+    n = 1_000_000
+    x, y = rng.standard_normal(n), rng.random(n) < 0.01
+    left = x <= 0.0
+    table = [[np.sum(left & y), np.sum(left & ~y)], [np.sum(~left & y), np.sum(~left & ~y)]]
+    ref = st.chi2_contingency(table, correction=False).statistic
+    assert pearson_chi2_2x2(x, y, 0.0) == pytest.approx(ref, rel=1e-9)

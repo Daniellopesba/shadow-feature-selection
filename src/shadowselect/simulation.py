@@ -1,6 +1,6 @@
 """Synthetic data and evaluation metrics used by the paper's experiments.
 
-The data model (Section 2 of the paper):
+The data model of the paper:
 
 * ``n`` samples, of which exactly ``n_min = round(n * p)`` are positives.
 * ``n_real`` informative features: ``X_j ~ N(0, 1)`` for negatives and
@@ -26,7 +26,7 @@ __all__ = [
 
 def derive_seed(key: str, repeat_idx: int) -> int:
     """Deterministic 32-bit seed from a string key and a repeat index."""
-    h = hashlib.md5(f"{key}:{repeat_idx}".encode()).hexdigest()
+    h = hashlib.md5(f"{key}:{repeat_idx}".encode(), usedforsecurity=False).hexdigest()
     return int(h[:8], 16)
 
 

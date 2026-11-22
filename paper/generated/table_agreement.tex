@@ -6,15 +6,19 @@ Row & Statement and rule & Result & Verdict & $p$ \\
 \toprule Row & Statement and rule & Result & Verdict & $p$ \\ \midrule\endhead
 P1 & \raggedright \cref{prop:chi2}: max relative error $\le$ 1e-6 (float32 precision) & \raggedright max relative error 2.7e-07 over 20 fits & agrees & -- \\
 \addlinespace
-P2 & \raggedright \cref{prop:nullmean}: within 0 + 3 SE in every setting & \raggedright 1.017 (SE 0.007) vs 1.017; 0.995 (SE 0.007) vs 1.005; 1.015 (SE 0.006) vs 1.001; 0.988 (SE 0.023) vs 1.000 & agrees & 0.9 \\
+P2 & \raggedright \cref{prop:nullmean}: within 0 + 3 SE in every setting & \raggedright 1.017 (SE 0.007) vs 1.017; 0.995 (SE 0.007) vs 1.005; 1.015 (SE 0.006) vs 1.001; 0.988 (SE 0.023) vs 1.000 & agrees & 1 \\
 \addlinespace
 P3 & \raggedright \cref{thm:limit}: relative range across n $\le$ 0.10 at every n\_min & \raggedright largest relative range of the median across n = 1e3..1e5: 0.045 (n\_min 100); medians 1.81 to 5.34 & agrees & -- \\
 \addlinespace
-P4 & \raggedright \cref{thm:limit}: chi-square goodness of fit over cells, with the variance of each cell the sum of the binomial variance of the measurement and the Monte Carlo variance of the prediction: p $\ge$ 0.01; and mean absolute error $\le$ 0.05. Exact search; hist reported conditional on (H1). & \raggedright exact: 57 cells, chi-square 67.4, p = 0.16, mean |error| 0.034; hist (conditional on H1): chi-square 65.1 on 57 cells, p = 0.22, mean |error| 0.032 & agrees & 0.97 \\
+P4 & \raggedright \cref{thm:limit}: chi-square goodness of fit over cells, with the variance of each cell the sum of the binomial variance of the measurement and the Monte Carlo variance of the prediction: p $\ge$ 0.01; and mean absolute error $\le$ 0.05. Exact search; hist reported conditional on (H1). & \raggedright exact: 57 cells, chi-square 67.4, p = 0.16, mean |error| 0.034; hist (conditional on H1): chi-square 65.1 on 57 cells, p = 0.22, mean |error| 0.032 & agrees & 1 \\
 \addlinespace
 P5 & \raggedright \cref{thm:scaling}: 95\% CI of the change in win probability per decade of p lies within [-0.05, 0.05] & \raggedright change in root win probability per decade of p at fixed s: -0.003 (95\% CI -0.017 to +0.011; 57 cells, 5700 runs) & agrees & 1 \\
 \addlinespace
 P6 & \raggedright \cref{prop:toll}: per-run agreement $\ge$ 99\% & \raggedright per-run agreement 300/300 (100.0\%); P(no split) p = 0.001: 0.56, p = 0.01: 0.00, p = 0.1: 0.00 & agrees & -- \\
+\addlinespace
+P7 & \raggedright \cref{conj:ensemble} (a): measured $\ge$ predicted - 2 SE in every informative cell & \raggedright 33 of 33 informative cells at or above the root-split prediction (K = 5, hist grid); median excess +0.18 & agrees & 1 \\
+\addlinespace
+P8 & \raggedright \cref{conj:ensemble} (b): difference $\ge$ -2 SE in every informative pair & \raggedright 17 of 17 adjacent-p pairs with FNR(smaller p) $\ge$ FNR(larger p) - 2 SE; precision-weighted mean difference +0.040 (SE 0.010) & agrees & 1 \\
 \addlinespace
 P9 & \raggedright \cref{prop:level}: measured $\le$ 1/(K+1) + 2 SE (data-set-clustered SE), for each method & \raggedright FPR (SE) against 1/11 = 0.091: naive auto 0.081 (0.009); class weight 0.089 (0.010); downsample 0.075 (0.009); early stop 0.088 (0.010); oneshot gain 0.083 (0.009); oneshot total gain 0.076 (0.008); oneshot shap 0.091 (0.010); mwu shadow max 0.078 (0.009) & agrees & 1 \\
 \addlinespace
@@ -24,7 +28,7 @@ P11 & \raggedright \cref{cor:shadows}: FNR(K') $\ge$ FNR(K) - 2 SE for K' > K in
 \addlinespace
 P12 & \raggedright \cref{prop:rounds}: measured $\le$ bound + 2 SE at every R; FPR at R = 60 $\le$ 4 E[theta\^{}2] + 2 SE & \raggedright R=10: keep 0.394 (SE 0.022), bound 0.909; R=20: keep 0.148 (SE 0.016), bound 0.455; R=40: keep 0.076 (SE 0.012), bound 0.303; R=60: keep 0.066 (SE 0.011), bound 0.273; at R=60: 4 E[theta\^{}2] = 0.100 (SE 0.014) & agrees & 1 \\
 \addlinespace
-P13 & \raggedright \cref{prop:mw}: within 0.05 + 2 SE in every informative cell & \raggedright 12 of 12 informative cells within 0.05 + 2 SE; largest deviation shadow max, n\_min 10, p 0.1: 0.71 vs 0.62 & agrees & 3.1e-05 \\
+P13 & \raggedright \cref{prop:mw}: within 0.05 + 2 SE in every informative cell & \raggedright 12 of 12 informative cells within 0.05 + 2 SE; largest deviation shadow max, n\_min 10, p 0.1: 0.71 vs 0.62 & agrees & 3.8e-05 \\
 \addlinespace
 P14 & \raggedright \cref{prop:mw} (non-Gaussian features): within 0.05 + 2 SE in every informative cell & \raggedright 3 of 6 informative cells within 0.05 + 2 SE (quick run); largest deviation t3, shadow max, n\_min 25: 0.60 vs 0.89 & disagrees (quick run) & 0 \\
 \addlinespace

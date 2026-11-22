@@ -700,6 +700,46 @@ def fit_counts():
         macro(f"{name}Fits", f"{total:,}".replace(",", "{,}") if total else "--", "{}")
 
 
+def intercept_gap():
+    """E2: FNR under the XGBoost 2.x default intercept minus FNR under the prevalence
+    intercept, on the same data sets, by prevalence band (not a criteria row)."""
+    d = load("e2_sweep.csv.gz")
+    if d is None:
+        return
+    g = d[(d.importance == "gain") & (d.delta > 0)]
+    w = g.pivot_table(index=["n_min", "p", "delta", "repeat"], columns="intercept", values="fnr_q100")
+    w["gap"] = w["auto"] - w["prior"]
+    for name, sel in (("Small", w.index.get_level_values("p") <= 0.01),
+                      ("Large", w.index.get_level_values("p") >= 0.05)):
+        x = w[sel].gap
+        cell = x.groupby(level=["n_min", "p", "delta"]).mean()
+        macro(f"GapMean{name}", x.mean(), "{:+.2f}")
+        macro(f"GapSE{name}", x.std() / np.sqrt(len(x)), "{:.3f}")
+    cell = w.gap.groupby(level=["n_min", "p", "delta"]).mean()
+    top = cell.idxmax()
+    pr = w.groupby(level=["n_min", "p", "delta"])[["auto", "prior"]].mean().loc[top]
+    macro("GapTopNmin", int(top[0]), "{}")
+    macro("GapTopP", top[1], "{}")
+    macro("GapTopDelta", top[2], "{}")
+    macro("GapTopAuto", pr["auto"])
+    macro("GapTopPrior", pr["prior"])
+    lo = cell.idxmin()
+    pl = w.groupby(level=["n_min", "p", "delta"])[["auto", "prior"]].mean().loc[lo]
+    macro("GapLowNmin", int(lo[0]), "{}")
+    macro("GapLowP", lo[1], "{}")
+    macro("GapLowDelta", lo[2], "{}")
+    macro("GapLowAuto", pl["auto"])
+    macro("GapLowPrior", pl["prior"])
+    x3 = load("e2_sweep_xgb3.csv.gz")
+    macro("XgbThreeMaxDiff", "--", "{}")
+    macro("XgbThreeCells", "--", "{}")
+    if x3 is not None:
+        a = x3[(x3.importance == "gain") & (x3.delta > 0)].groupby(["n_min", "p", "delta"]).fnr_q100.mean()
+        b = w.prior.groupby(level=["n_min", "p", "delta"]).mean().reindex(a.index)
+        macro("XgbThreeMaxDiff", float((a - b).abs().max()))
+        macro("XgbThreeCells", len(a), "{}")
+
+
 def run_time():
     """Total wall time of the full (non-quick) runs, from the metadata files."""
     times = {}
@@ -813,5 +853,6 @@ if __name__ == "__main__":
     for pid in wanted:
         ALL[pid]()
     fit_counts()
+    intercept_gap()
     run_time()
     write_outputs()

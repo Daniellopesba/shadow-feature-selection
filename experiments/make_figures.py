@@ -201,8 +201,8 @@ def root_failure(n_min, delta, k):
     """1 - E[F0(M)^K] in the limit of Theorem 1 (Corollary 1)."""
     from shadowselect.theory import limit_max_gain
 
-    null = np.sort(limit_max_gain(n_min, 0.0, n_rep=20000, seed=11))
-    sig = limit_max_gain(n_min, delta, n_rep=3000, seed=12)
+    null = np.sort(limit_max_gain(n_min, 0.0, n_rep=20000, seed=11, n_bins=256))
+    sig = limit_max_gain(n_min, delta, n_rep=3000, seed=12, n_bins=256)
     f = np.searchsorted(null, sig, side="left") / len(null)
     return float(1 - np.mean(f**k))
 
@@ -211,7 +211,7 @@ def fig2_scaling():
     d = load_e2()
     agg = e2_cells(d[d.delta > 0])
     pr = agg[agg.intercept == "prior"]
-    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.9))
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.4))
     ax = axes[0]
     for delta, (col, mk) in DELTA_STYLE.items():
         s = pr[pr.delta == delta]
@@ -219,12 +219,12 @@ def fig2_scaling():
                     label=f"$\\delta$ = {delta}")
     ss = np.unique(np.round(np.geomspace(1, 1500, 18)))
     pred = [root_failure(200, np.sqrt(x / 200), 5) for x in ss]
-    ax.plot(ss, pred, "-", color="black", lw=1, label="root-split failure (Cor. 1), $K$ = 5")
+    ax.plot(ss, pred, "-", color="black", lw=1, label="root-split failure, $n_{\\min}$ = 200, $K$ = 5")
     ax.axhline(5 / 6, color=OI["grey"], lw=0.8, ls=":")
-    ax.text(1.1, 5 / 6 + 0.02, "chance: 5/6", fontsize=6.5, color=OI["grey"])
+    ax.text(300, 5 / 6 + 0.02, "chance: 5/6", fontsize=6.5, color=OI["grey"])
     ax.set(xscale="log", xlabel="$s = n_{\\min}\\delta^2$", ylabel="FNR (max-shadow rule)",
            title="(a) the full ensemble against $s$", ylim=(-0.03, 1.0))
-    ax.legend(loc="lower left", fontsize=6.5)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), fontsize=6.5, ncol=2, frameon=False)
 
     ax = axes[1]
     for delta, ls in ((0.3, "-"), (0.5, "--")):
@@ -239,7 +239,7 @@ def fig2_scaling():
     ax.plot([], [], "--", color=OI["grey"], label="$\\delta$ = 0.5")
     ax.set(xscale="log", xlabel="prevalence $p$ (same $n_{\\min}$)", ylabel="FNR",
            title="(b) residual effect of $p$ at fixed $n_{\\min}$")
-    ax.legend(fontsize=6.5, ncol=2, loc="upper right")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), fontsize=6.5, ncol=3, frameon=False)
     fig.tight_layout()
     save(fig, "fig2_scaling")
 
@@ -283,6 +283,22 @@ def table_e2():
         row.append(str(n_cells))
         lines.append(" & ".join(row) + r" \\")
     write_tex("table_e2", "\n".join(lines) + "\n")
+
+
+def table_sbands():
+    """FNR of the one-shot rule by band of s (E2, prevalence intercept): guidance table."""
+    agg = e2_cells(load_e2().query("delta > 0"))
+    c = agg[agg.intercept == "prior"].groupby(["n_min", "p", "delta"])["mean"].mean().reset_index()
+    c["s"] = c.n_min * c.delta**2
+    bands = [(0, 5, "$< 5$", "50, 0.3"), (5, 10, "5--10", "100, 0.3"), (10, 25, "10--25", "50, 0.5"),
+             (25, 60, "25--60", "150, 0.5"), (60, np.inf, "$\\ge 60$", "250, 0.5")]
+    lines = []
+    for lo, hi, lab, ex in bands:
+        x = c[(c.s >= lo) & (c.s < hi)]["mean"]
+        n, d = ex.split(", ")
+        lines.append(f"{lab} & {x.min():.2f}--{x.max():.2f} & {x.median():.2f} & {len(x)} & "
+                     f"$\\nmin = {n}$, $\\delta = {d}$ \\\\")
+    write_tex("table_sbands", "\n".join(lines) + "\n")
 
 
 # --------------------------------------------------------------------- E3, E5, E8: appendix
@@ -595,7 +611,7 @@ def table_realdata():
 if __name__ == "__main__":
     import sys
 
-    jobs = [fig1_first_split, figA1_intercept_toll, fig2_scaling, figA2_fnr_vs_nmin, table_e2,
+    jobs = [fig1_first_split, figA1_intercept_toll, fig2_scaling, figA2_fnr_vs_nmin, table_e2, table_sbands,
             figA3_rounds, figA4_mechanism, figA5_backends, figA6_shadows,
             fig3_methods, table_methods, table_robustness, table_realdata]
     only = set(sys.argv[1:])

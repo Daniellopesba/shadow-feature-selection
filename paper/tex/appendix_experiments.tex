@@ -1,1 +1,53 @@
-% appendix_experiments (to be written)
+\section{Further experiments}\label{app:experiments}
+
+\subsection{The full ensemble by minority count}\label{app:e2}
+
+\begin{table}[h]
+\centering\small
+\caption{Mean false negative rate of the one-shot rule in E2 (300 trees, mean gain, $K = 5$), by minority count, effect size and intercept, on the same data sets for both intercepts. The last column is the number of $(\nmin, \phat)$ cells in each row.}\label{tab:e2}
+\begin{tabular}{lccccccc}
+\toprule
+ & \multicolumn{3}{c}{prevalence intercept} & \multicolumn{3}{c}{XGBoost 2.x default} & \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+$\nmin$ & $\delta = 0.3$ & 0.5 & 1 & 0.3 & 0.5 & 1 & cells\\
+\midrule
+\csname @@input\endcsname generated/table_e2
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figA2_fnr_vs_nmin}
+\caption{E2 by cell: false negative rate against $\nmin$, by prevalence, effect size and intercept. Error bars: two standard errors.}\label{fig:e2cells}
+\end{figure}
+
+\subsection{The XGBoost 2.x intercept}\label{app:intercept-arm}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figA1_intercept_toll}
+\caption{The intercept toll in the first tree (E1). (a) Root win probability under both intercepts (exact search): open markers, XGBoost~2.x default; filled, prevalence intercept. (b) Probability that the first tree makes no split at all (\code{hist}).}\label{fig:toll}
+\end{figure}
+
+% INTERCEPT_ROUNDS_TEXT
+
+\subsection{Mechanism: gain of relevant and null features}\label{app:mechanism}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figA4_mechanism}
+\caption{E2, total gain. (a) Mean total gain of the relevant features divided by the largest null total gain. (b) Pure-noise control ($\delta = 0$): largest null total gain per positive, larger at small prevalence, as the gain accounting of \cref{prop:accounting} suggests.}\label{fig:mechanism}
+\end{figure}
+
+\subsection{Number of shadows}\label{app:shadows}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.55\textwidth]{figA6_shadows}
+\caption{E8: false negative rate of the one-shot rule with $K = 5$, 50 and 200 shadows ($\delta = 0.5$, $\phat = 0.1$). Error bars: two standard errors.}\label{fig:shadows}
+\end{figure}
+
+% BACKENDS_TEXT
+% LEVEL_APPENDIX_TEXT
+% WIDE_TEXT

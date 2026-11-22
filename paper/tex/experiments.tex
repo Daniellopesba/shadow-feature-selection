@@ -39,7 +39,24 @@ E11 & Five real tables with appended null columns (\cref{sec:realdata}) & \numEe
 \caption{The first split against \cref{thm:limit}. (a) Median best split of a null feature, by $n$. With XGBoost's regularisation it depends on $\nmin$ and not on $n$; without it, it grows with $n$. (b) Probability that the root uses the informative feature rather than one of nine null features (exact search, prevalence intercept), against $s = \nmin\delta^2$; error bars are two binomial standard errors. Black: the limit \eqref{eq:limit}, without fitted parameters. Dotted: chance, 1/10.}\label{fig:first}
 \end{figure}
 
-% E2, E8 and the level experiments follow once the full runs finish.
 \subsection{The full ensemble}\label{sec:exp-ensemble}
 
+E2 fits 300-tree ensembles with five relevant and five null features and applies the one-shot rule with the null features as the $K = 5$ shadows. \Cref{fig:scaling}a plots the false negative rate of each cell against $s$, and \cref{tab:e2} in \cref{app:experiments} groups the cells by $\nmin$.
+
+\paragraph{The root-split theory is a lower bound (P7).} \Cref{conj:ensemble}(a) predicts that an ensemble loses a relevant feature at least as often as the root split of \cref{cor:shadows} does. In all \numPsevenPass{} of \numPsevenCells{} informative cells the measured rate is at or above the prediction, by a median of \numPsevenExcess. \emph{Heuristic:} the excess is what the later trees add, since once the signal has been used further splits fit noise in the positives and every null column gets a share of that gain.
+
+\paragraph{$s$ organises the ensemble, with a small residual effect of the prevalence (P8).} The false negative rate falls from 0.6--0.85 for $s < 5$ to at most 0.03 for $s \ge 60$ (\cref{tab:sbands} in \cref{sec:guidance}), whatever the prevalence. At fixed $\nmin$ and $\delta$ the prevalence still matters at weak signal (\cref{fig:scaling}b): at $\nmin = 200$ and $\delta = 0.5$ the rate is 0.10 at $\phat = 0.001$ and 0.02 at $\phat = 0.2$. Every one of the \numPeightPairs{} informative pairs of adjacent prevalences goes in the direction \cref{conj:ensemble}(b) states, or is within two standard errors of it, and the precision-weighted mean increase per step to a smaller prevalence is \numPeightPooled{} (standard error \numPeightPooledSE). We have no quantitative account of this residual. A plausible source is the gain accounting of \cref{prop:accounting}: the total gain an ensemble records is about ten times the training loss it removes, and the initial loss, about $\nmin(1 + \ln(1/\phat))$ nats, grows as $\phat$ falls, so there is more to memorise at small prevalence; we have not turned this into a prediction.
+
+\paragraph{The intercept accounts for most of the prevalence effect in XGBoost~2.x.} On the same data sets, the XGBoost~2.x default intercept raises the false negative rate by \numGapMeanSmall{} on average at $\phat \le 0.01$ and by \numGapMeanLarge{} at $\phat \ge 0.05$; the largest effect is at $\nmin = \numGapTopNmin$, $\phat = \numGapTopP$, $\delta = \numGapTopDelta$, with \numGapTopAuto{} against \numGapTopPrior{} (\cref{app:intercept-arm}). Under XGBoost~3.1, whose default is the prevalence intercept, the rates match the prevalence arm of XGBoost~2.1 within \numXgbThreeMaxDiff{} in every cell.
+
+\paragraph{More shadows raise the bar (P11).} With $K = 5$, 50 and 200 null columns (E8, $\delta = 0.5$, $\phat = 0.1$), the false negative rate at $\nmin = 100$ ($s = 25$) is 0.11, 0.36 and 0.99, and it never decreases with $K$ beyond two standard errors (\cref{fig:shadows} in \cref{app:experiments}). Boruta's choice of one shadow per candidate therefore makes a wide table harder to select from than a narrow one with the same signal.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{fig2_scaling}
+\caption{The full ensemble (E2: 300 trees, prevalence intercept, $K = 5$). (a) False negative rate of the one-shot rule against $s = \nmin\delta^2$, one point per cell; the curve is the root-split failure $1 - \E[Q(M)^K]$ of \cref{cor:shadows}, a lower bound by \cref{conj:ensemble}(a). (b) The residual effect of the prevalence at fixed $\nmin$. Error bars: two standard errors.}\label{fig:scaling}
+\end{figure}
+
 \subsection{The level of the shadow rule}\label{sec:exp-level}
+
+% LEVEL_TEXT
